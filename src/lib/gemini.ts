@@ -27,7 +27,6 @@ export async function qualifyJobsWithGemini(
         companyDescription: string;
     }
 ): Promise<QualificationResult[]> {
-    // Use gemini-2.0-flash which is the currently available model
     const model = 'gemini-2.5-flash-preview-05-20';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -60,7 +59,7 @@ export async function qualifyJobsWithGemini(
         return filteredResults;
     }
 
-    // Process in batches of 15 to avoid token limits (smaller batches = faster)
+    // Process in batches of 15 to avoid token limits
     const batchSize = 15;
     const aiResults: QualificationResult[] = [];
 
@@ -89,83 +88,61 @@ async function qualifyBatch(
         title: job.title,
         company: job.company,
         location: job.location,
-        description: job.description?.substring(0, 1500), // Limit for faster processing
+        description: job.description?.substring(0, 1500),
         techStack: job.techStack
     }));
 
-    const workLocationInstruction = criteria.workLocation === 'remote'
-        ? 'ONLY fully remote positions qualify. Hybrid or on-site positions should NOT qualify.'
-        : criteria.workLocation === 'hybrid'
-            ? 'Remote OR hybrid positions qualify. Pure on-site positions should NOT qualify.'
-            : criteria.workLocation === 'onsite'
-                ? 'All locations qualify including on-site.'
-                : 'Any location is fine, all qualify on location.';
+    const prompt = `Task: Classify Job Work Mode and Qualify for ${criteria.companyName}
 
-    const prompt = `You are an expert job qualification AI for ${criteria.companyName}.
+You must analyze the title, location, and description fields for EVERY job entry to determine the work mode. Use the following strict logic to classify each job:
 
-=== YOUR TASK ===
-For each job, carefully analyze the FULL description, title, and location to:
-1. Determine if the job allows REMOTE work
-2. Extract relevant technologies mentioned
-3. Qualify based on our criteria
+=== REMOTE ===
+Classify as "remote" if you find keywords such as:
+- "Remote", "Work from home", "WFH", "Work from anywhere", "Home-based", "Virtual", "Telecommute", "Fully distributed"
+- "Remote first" (Note: Treat this as a definitive confirmation of remote work, even if a specific office location is also mentioned in the post)
 
-=== WORK LOCATION DETECTION - CRITICAL ===
-⚠️ SEARCH THE ENTIRE JOB TEXT (title + location + full description) for these EXACT keywords (case-insensitive):
+Crucial Check: Look for "Remote" explicitly mentioned in the location field (e.g., "Remote - Israel") or the title (e.g., "Backend Engineer (Remote)").
 
-MUST CHECK FOR THESE KEYWORDS:
-- "remote" (anywhere in the text)
-- "remote first"
-- "remote friendly"
-- "remote-first"
-- "remote-friendly"
-- "work from home"
-- "WFH"
-- "work remotely"
-- "remote work"
-- "fully remote"
-- "100% remote"
-- "remote position"
-- "remote opportunity"
-- "remote option"
-- "hybrid"
-- "flexible location"
-- "work from anywhere"
-- "distributed team"
+=== HYBRID ===
+Classify as "hybrid" if you find keywords such as:
+- "Hybrid", "Flexible work", "Mix of office and home", "X days in office", "Office occasionally"
 
-SEARCH RULES:
-1. Read the ENTIRE description from start to end - do not skip any section
-2. If ANY of the above keywords appear ANYWHERE in the job → classify as "remote" or "hybrid"
-3. The word "remote" appearing in benefits, about section, or anywhere = REMOTE JOB
-4. Only mark as "onsite" if ZERO remote-related keywords are found
-5. Provide the EXACT text snippet where you found the keyword
+Context Clue: If the text mentions both a specific physical office location AND "flexible working options" without explicitly saying "fully remote," classify as hybrid.
 
+=== ON-SITE ===
+Classify as "onsite" if the description explicitly states:
+- "On-site", "Work from office", "In-office"
+
+Default Logic: If none of the above keywords (Remote/Hybrid) are found, and a specific physical location is provided (e.g., "Tel Aviv"), classify as "onsite".
 
 === QUALIFICATION CRITERIA ===
-${criteria.workLocation === 'remote' ? '⚠️ We want REMOTE jobs! Only jobs with remote work option qualify.' : ''}
-Work Location: ${workLocationInstruction}
-Tech Match: Should mention at least one of: ${criteria.techStack.join(', ')}
+${criteria.workLocation === 'remote' ? '⚠️ We want REMOTE jobs only! Hybrid or on-site → qualified: false' : ''}
+${criteria.workLocation === 'hybrid' ? 'Remote OR hybrid jobs qualify. On-site only → qualified: false' : ''}
+${criteria.workLocation === 'any' ? 'Any work location is acceptable.' : ''}
+Tech Stack Match: Job should mention at least one of: ${criteria.techStack.join(', ')}
+
+A job is qualified ONLY if it meets BOTH the work location AND tech stack criteria.
 
 === JOBS TO ANALYZE ===
 ${JSON.stringify(jobsData, null, 2)}
 
-=== RESPONSE FORMAT ===
-Return ONLY a valid JSON array (no markdown, no code blocks):
+=== OUTPUT FORMAT ===
+Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
 [
   {
     "jobId": "string",
     "qualified": boolean,
     "confidence": number (0-100),
-    "reason": "Short explanation of work location + tech match",
+    "reason": "Brief: Work mode found + tech match status",
     "extractedData": {
       "isRemote": boolean,
-      "workLocation": "remote" | "hybrid" | "onsite" | "unknown",
-      "detectedFrom": "description" | "title" | "location" | "none",
-      "remoteEvidence": "EXACT quote from the job where you found remote/hybrid indication, or null if none",
+      "workLocation": "remote" | "hybrid" | "onsite",
+      "detectedFrom": "title" | "location" | "description" | "none",
+      "remoteEvidence": "EXACT quote or field where you found the work mode indicator, or null if defaulted to onsite",
       "techStack": ["detected technologies from our list"]
     }
   }
 ]`;
-
 
     try {
         const response = await fetch(endpoint, {
