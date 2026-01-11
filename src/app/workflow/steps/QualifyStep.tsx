@@ -111,13 +111,16 @@ export default function QualifyStep() {
                     newDisqualifiedJobs.push(updatedJob);
                 }
 
-                // Format the reason with confidence and location source
+                // Format the reason with confidence, location source, and evidence
                 const locationInfo = result.extractedData.workLocation !== 'unknown'
                     ? `${result.extractedData.workLocation} (from ${result.extractedData.detectedFrom})`
                     : 'unknown';
                 const hasPoster = !!(job.poster?.name || job.poster?.linkedInUrl);
+                const evidence = result.extractedData.remoteEvidence
+                    ? ` | Evidence: "${result.extractedData.remoteEvidence}"`
+                    : '';
 
-                newReasons[result.jobId] = `[${result.confidence}%] ${result.reason} | Location: ${locationInfo}${hasPoster ? ` | Poster: ${job.poster?.name} ✓` : ''}`;
+                newReasons[result.jobId] = `[${result.confidence}%] ${result.reason} | Location: ${locationInfo}${evidence}${hasPoster ? ` | Poster: ${job.poster?.name} ✓` : ''}`;
             });
 
             // Verify all jobs were processed - add any missing ones

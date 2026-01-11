@@ -11,6 +11,7 @@ export interface QualificationResult {
         isRemote: boolean;
         workLocation: 'remote' | 'hybrid' | 'onsite' | 'unknown';
         detectedFrom: 'description' | 'title' | 'location' | 'none';
+        remoteEvidence: string | null; // Quote from job showing remote/hybrid indication
         techStack: string[];
     };
 }
@@ -50,6 +51,7 @@ export async function qualifyJobsWithGemini(
             isRemote: false,
             workLocation: 'unknown' as const,
             detectedFrom: 'none' as const,
+            remoteEvidence: null,
             techStack: job.techStack || []
         }
     }));
@@ -102,29 +104,33 @@ async function qualifyBatch(
     const prompt = `You are an expert job qualification AI for ${criteria.companyName}.
 
 === YOUR TASK ===
-Analyze each job and:
-1. Detect if it's Remote, Hybrid, or On-site (check description FIRST)
-2. Extract the tech stack mentioned
-3. Determine if it qualifies based on our criteria
+For each job, carefully analyze the FULL description, title, and location to:
+1. Determine if the job allows REMOTE work (fully remote, partly remote, work from home, etc.)
+2. Extract relevant technologies mentioned
+3. Qualify based on our criteria
 
-=== HOW TO DETECT WORK LOCATION ===
-Search in this ORDER (priority):
-1. DESCRIPTION (PRIMARY): Look for patterns especially at the START like:
-   - "Remote – Israel", "Remote - US", "100% Remote", "Fully Remote", "Work from home", "WFH" → REMOTE
-   - "Hybrid (Flexible)", "Hybrid - Tel Aviv", "Remote/Hybrid", "Flexible location" → HYBRID
-   - "On-site Tel Aviv", "Office based", no remote mention → ONSITE
+=== WORK LOCATION DETECTION ===
+Thoroughly search the ENTIRE job description, title, and location field for ANY indication of remote work flexibility.
 
-2. TITLE (SECONDARY): May contain "(Remote)", "- Remote", "Hybrid"
+Look for (but not limited to):
+- Explicit remote mentions anywhere in the text
+- Work from home policies
+- Location flexibility statements
+- Distributed team mentions
+- "Remote" in any context related to work arrangement
+- Hybrid work arrangements
+- Flexible location policies
+- "Work from anywhere" or similar phrases
+- Country/region-specific remote options (e.g., "Remote - Israel", "US Remote")
 
-3. LOCATION (SECONDARY): "Remote", "Hybrid", or city-only = onsite
-
-Rules:
-- "Remote" clearly stated → workLocation: "remote", isRemote: true
-- "Hybrid" anywhere → workLocation: "hybrid", isRemote: false
-- Only city/country with no remote/hybrid → workLocation: "onsite", isRemote: false
+IMPORTANT: 
+- Search the ENTIRE description, not just the beginning
+- If you find ANY remote work indication, classify as "remote" or "hybrid"
+- Only classify as "onsite" if there is NO remote indication found
+- Provide the EXACT quote/text where you found the remote indication
 
 === QUALIFICATION CRITERIA ===
-${criteria.workLocation === 'remote' ? '⚠️ ONLY REMOTE jobs qualify! Hybrid/on-site → qualified: false' : ''}
+${criteria.workLocation === 'remote' ? '⚠️ We want REMOTE jobs! Only jobs with remote work option qualify.' : ''}
 Work Location: ${workLocationInstruction}
 Tech Match: Should mention at least one of: ${criteria.techStack.join(', ')}
 
@@ -138,15 +144,17 @@ Return ONLY a valid JSON array (no markdown, no code blocks):
     "jobId": "string",
     "qualified": boolean,
     "confidence": number (0-100),
-    "reason": "Brief: [Remote/Hybrid/Onsite detected from X] + tech match status",
+    "reason": "Short explanation of work location + tech match",
     "extractedData": {
       "isRemote": boolean,
       "workLocation": "remote" | "hybrid" | "onsite" | "unknown",
       "detectedFrom": "description" | "title" | "location" | "none",
+      "remoteEvidence": "EXACT quote from the job where you found remote/hybrid indication, or null if none",
       "techStack": ["detected technologies from our list"]
     }
   }
 ]`;
+
 
     try {
         const response = await fetch(endpoint, {
@@ -196,6 +204,7 @@ Return ONLY a valid JSON array (no markdown, no code blocks):
                 isRemote: false,
                 workLocation: 'unknown' as const,
                 detectedFrom: 'none' as const,
+                remoteEvidence: null,
                 techStack: job.techStack || []
             }
         }));
