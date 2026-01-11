@@ -75,15 +75,55 @@ export default function SourceStep() {
     };
 
     const extractTechStack = (description: string): string[] => {
-        const techKeywords = [
-            'React', 'Angular', 'Vue', 'Node.js', 'Python', 'Java', 'TypeScript',
-            'JavaScript', 'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'PostgreSQL',
-            'MongoDB', 'Redis', 'GraphQL', 'REST', '.NET', 'C#', 'Go', 'Rust',
-            'Ruby', 'Rails', 'Django', 'Flask', 'Next.js', 'Express'
+        // Comprehensive tech stack matching
+        const techPatterns: { keyword: string; aliases: string[] }[] = [
+            // Frontend
+            { keyword: 'React', aliases: ['react', 'react.js', 'reactjs'] },
+            { keyword: 'Vue.js', aliases: ['vue', 'vue.js', 'vuejs'] },
+            { keyword: 'Angular', aliases: ['angular', 'angularjs'] },
+            { keyword: 'Next.js', aliases: ['next', 'next.js', 'nextjs'] },
+            { keyword: 'TypeScript', aliases: ['typescript', 'ts'] },
+            { keyword: 'JavaScript', aliases: ['javascript', 'js', 'es6', 'ecmascript'] },
+            // Backend
+            { keyword: 'Node.js', aliases: ['node', 'node.js', 'nodejs'] },
+            { keyword: 'Python', aliases: ['python', 'python3', 'django', 'flask', 'fastapi'] },
+            { keyword: 'Java', aliases: ['java', 'spring', 'spring boot', 'springboot'] },
+            { keyword: '.NET', aliases: ['.net', 'dotnet', 'c#', 'csharp', 'asp.net'] },
+            { keyword: 'Go', aliases: ['golang', 'go lang'] },
+            { keyword: 'Ruby', aliases: ['ruby', 'rails', 'ruby on rails'] },
+            { keyword: 'Rust', aliases: ['rust', 'rustlang'] },
+            { keyword: 'PHP', aliases: ['php', 'laravel', 'symfony'] },
+            // Cloud & DevOps
+            { keyword: 'AWS', aliases: ['aws', 'amazon web services', 'ec2', 's3', 'lambda', 'cloudformation'] },
+            { keyword: 'Azure', aliases: ['azure', 'microsoft azure'] },
+            { keyword: 'GCP', aliases: ['gcp', 'google cloud', 'google cloud platform'] },
+            { keyword: 'Docker', aliases: ['docker', 'containers', 'containerization'] },
+            { keyword: 'Kubernetes', aliases: ['kubernetes', 'k8s'] },
+            { keyword: 'Terraform', aliases: ['terraform', 'iac', 'infrastructure as code'] },
+            { keyword: 'CI/CD', aliases: ['ci/cd', 'ci cd', 'cicd', 'jenkins', 'github actions', 'gitlab ci', 'circleci', 'continuous integration', 'continuous deployment'] },
+            // Data
+            { keyword: 'PostgreSQL', aliases: ['postgres', 'postgresql', 'pg'] },
+            { keyword: 'MongoDB', aliases: ['mongodb', 'mongo'] },
+            { keyword: 'Redis', aliases: ['redis'] },
+            { keyword: 'MySQL', aliases: ['mysql'] },
+            { keyword: 'Elasticsearch', aliases: ['elasticsearch', 'elastic'] },
+            // Other
+            { keyword: 'GraphQL', aliases: ['graphql', 'apollo'] },
+            { keyword: 'REST', aliases: ['rest api', 'restful', 'api'] },
+            { keyword: 'Full Stack', aliases: ['full stack', 'fullstack', 'full-stack'] },
+            { keyword: 'QA/Testing', aliases: ['qa', 'quality assurance', 'testing', 'test automation', 'selenium', 'cypress', 'jest', 'pytest'] },
+            { keyword: 'Microservices', aliases: ['microservices', 'micro-services', 'microservice'] },
+            { keyword: 'Machine Learning', aliases: ['machine learning', 'ml', 'ai', 'artificial intelligence', 'deep learning', 'tensorflow', 'pytorch'] }
         ];
-        return techKeywords.filter(tech =>
-            description.toLowerCase().includes(tech.toLowerCase())
-        );
+
+        const lowerDesc = description.toLowerCase();
+        const lowerTitle = (description.includes('title:') ? description : '').toLowerCase();
+
+        return techPatterns
+            .filter(tech =>
+                tech.aliases.some(alias => lowerDesc.includes(alias) || lowerTitle.includes(alias))
+            )
+            .map(tech => tech.keyword);
     };
 
     const extractSeniority = (title: string): JobPost['seniorityLevel'] => {

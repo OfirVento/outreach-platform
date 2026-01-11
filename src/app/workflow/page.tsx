@@ -109,23 +109,23 @@ export default function WorkflowPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {/* Stats */}
+                        {/* Stats - computed directly from data for accuracy */}
                         <div className="flex items-center gap-4 text-sm mr-4">
                             <div className="text-center">
                                 <p className="text-gray-500">Jobs</p>
-                                <p className="font-bold text-gray-900">{currentRun.stats.totalJobs}</p>
+                                <p className="font-bold text-gray-900">{currentRun.sourceData.jobs.length}</p>
                             </div>
                             <div className="text-center">
                                 <p className="text-gray-500">Qualified</p>
-                                <p className="font-bold text-green-600">{currentRun.stats.qualifiedJobs}</p>
+                                <p className="font-bold text-green-600">{currentRun.qualifyData.qualifiedJobs.length}</p>
                             </div>
                             <div className="text-center">
                                 <p className="text-gray-500">Contacts</p>
-                                <p className="font-bold text-gray-900">{currentRun.stats.totalContacts}</p>
+                                <p className="font-bold text-gray-900">{currentRun.enrichData.contacts.length}</p>
                             </div>
                             <div className="text-center">
                                 <p className="text-gray-500">Messages</p>
-                                <p className="font-bold text-gray-900">{currentRun.stats.totalMessages}</p>
+                                <p className="font-bold text-gray-900">{currentRun.composeData.messages.length}</p>
                             </div>
                         </div>
 

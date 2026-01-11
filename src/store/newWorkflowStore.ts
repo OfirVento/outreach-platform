@@ -621,7 +621,37 @@ export const useNewWorkflowStore = create<NewWorkflowState>()(
                 currentRun: state.currentRun,
                 runHistory: state.runHistory,
                 mode: state.mode
-            })
+            }),
+            onRehydrateStorage: () => (state) => {
+                // After hydration, sync stats with actual data
+                if (state?.currentRun) {
+                    const jobCount = state.currentRun.sourceData.jobs.length;
+                    const qualifiedCount = state.currentRun.qualifyData.qualifiedJobs.length;
+                    const contactCount = state.currentRun.enrichData.contacts.length;
+                    const messageCount = state.currentRun.composeData.messages.length;
+                    const approvedCount = state.currentRun.composeData.messages.filter(m => m.status === 'approved').length;
+
+                    // Update stats if they're out of sync
+                    if (state.currentRun.stats.totalJobs !== jobCount ||
+                        state.currentRun.stats.qualifiedJobs !== qualifiedCount ||
+                        state.currentRun.stats.totalContacts !== contactCount ||
+                        state.currentRun.stats.totalMessages !== messageCount) {
+
+                        useNewWorkflowStore.setState((s) => ({
+                            currentRun: s.currentRun ? {
+                                ...s.currentRun,
+                                stats: {
+                                    totalJobs: jobCount,
+                                    qualifiedJobs: qualifiedCount,
+                                    totalContacts: contactCount,
+                                    totalMessages: messageCount,
+                                    readyToSend: approvedCount
+                                }
+                            } : null
+                        }));
+                    }
+                }
+            }
         }
     )
 );
