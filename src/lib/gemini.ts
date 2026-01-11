@@ -1,6 +1,6 @@
-// Gemini API utility for AI-powered qualification
+// Gemini API utility for AI-powered qualification and message generation
 
-import type { JobPost } from '../types';
+import type { JobPost, GeneratedMessage, Contact } from '../types';
 
 export interface QualificationResult {
     jobId: string;
@@ -10,14 +10,13 @@ export interface QualificationResult {
     extractedData: {
         isRemote: boolean;
         workLocation: 'remote' | 'hybrid' | 'onsite' | 'unknown';
-        hasPoster: boolean;
-        posterName?: string;
-        posterTitle?: string;
-        posterLinkedIn?: string;
+        detectedFrom: 'description' | 'title' | 'location' | 'none';
         techStack: string[];
-        seniorityLevel: string;
-        companySize?: string;
     };
+    message: {
+        subject: string | null;
+        body: string | null;
+    } | null;
 }
 
 export async function qualifyJobsWithGemini(
@@ -29,23 +28,55 @@ export async function qualifyJobsWithGemini(
         posterRequired: 'required' | 'any';
         companyName: string;
         companyDescription: string;
+        senderName: string;
+        senderTitle: string;
+        toneOfVoice: 'casual' | 'professional' | 'consultative';
     }
 ): Promise<QualificationResult[]> {
     // Use gemini-2.0-flash which is the currently available model
     const model = 'gemini-2.0-flash';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    // Process in batches of 10 to avoid token limits
-    const batchSize = 10;
-    const results: QualificationResult[] = [];
+    // Pre-filter jobs based on poster requirement (done programmatically)
+    const jobsToAnalyze = criteria.posterRequired === 'required'
+        ? jobs.filter(job => !!(job.poster?.name || job.poster?.linkedInUrl))
+        : jobs;
 
-    for (let i = 0; i < jobs.length; i += batchSize) {
-        const batch = jobs.slice(i, i + batchSize);
-        const batchResults = await qualifyBatch(batch, endpoint, criteria);
-        results.push(...batchResults);
+    // Jobs filtered out due to no poster
+    const noPosterfilteredJobs = jobs.filter(job =>
+        criteria.posterRequired === 'required' && !(job.poster?.name || job.poster?.linkedInUrl)
+    );
+
+    // Create fallback results for filtered jobs
+    const filteredResults: QualificationResult[] = noPosterfilteredJobs.map(job => ({
+        jobId: job.id,
+        qualified: false,
+        confidence: 100,
+        reason: 'No poster contact available',
+        extractedData: {
+            isRemote: false,
+            workLocation: 'unknown' as const,
+            detectedFrom: 'none' as const,
+            techStack: job.techStack || []
+        },
+        message: null
+    }));
+
+    if (jobsToAnalyze.length === 0) {
+        return filteredResults;
     }
 
-    return results;
+    // Process in batches of 10 to avoid token limits
+    const batchSize = 10;
+    const aiResults: QualificationResult[] = [];
+
+    for (let i = 0; i < jobsToAnalyze.length; i += batchSize) {
+        const batch = jobsToAnalyze.slice(i, i + batchSize);
+        const batchResults = await qualifyBatch(batch, endpoint, criteria);
+        aiResults.push(...batchResults);
+    }
+
+    return [...aiResults, ...filteredResults];
 }
 
 async function qualifyBatch(
@@ -57,6 +88,9 @@ async function qualifyBatch(
         posterRequired: 'required' | 'any';
         companyName: string;
         companyDescription: string;
+        senderName: string;
+        senderTitle: string;
+        toneOfVoice: 'casual' | 'professional' | 'consultative';
     }
 ): Promise<QualificationResult[]> {
     const jobsData = jobs.map(job => ({
@@ -64,51 +98,91 @@ async function qualifyBatch(
         title: job.title,
         company: job.company,
         location: job.location,
-        description: job.description?.substring(0, 1500), // Limit description length
-        poster: job.poster,
-        techStack: job.techStack,
-        isRemote: job.isRemote
+        description: job.description?.substring(0, 2000),
+        posterName: job.poster?.name || null,
+        techStack: job.techStack
     }));
 
-    const prompt = `You are a lead qualification AI for "${criteria.companyName}".
-${criteria.companyDescription ? `About us: ${criteria.companyDescription}` : ''}
+    const workLocationInstruction = criteria.workLocation === 'remote'
+        ? 'ONLY fully remote positions qualify. Hybrid or on-site positions should NOT qualify.'
+        : criteria.workLocation === 'hybrid'
+            ? 'Remote OR hybrid positions qualify. Pure on-site positions should NOT qualify.'
+            : criteria.workLocation === 'onsite'
+                ? 'All locations qualify including on-site.'
+                : 'Any location is fine, all qualify on location.';
 
-We provide services related to: ${criteria.techStack.join(', ')}
+    const toneInstructions = criteria.toneOfVoice === 'casual'
+        ? 'friendly, conversational, use contractions, be warm and personable'
+        : criteria.toneOfVoice === 'professional'
+            ? 'formal but warm, clear value proposition, polished language'
+            : 'consultative, ask insightful questions, demonstrate expertise';
 
-QUALIFICATION CRITERIA:
-- Work Location: ${criteria.workLocation === 'remote' ? 'ONLY remote positions' : criteria.workLocation === 'hybrid' ? 'Remote OR hybrid positions' : criteria.workLocation === 'onsite' ? 'All locations including on-site' : 'Any location is fine'}
-- Poster Contact: ${criteria.posterRequired === 'required' ? 'MUST have a job poster name' : 'Poster is optional'}
-- Tech Match: The job should use at least one of our technologies
+    const prompt = `You are an expert lead qualification and outreach AI for ${criteria.companyName}.
 
-For each job below, analyze and extract:
-1. Is it remote, hybrid, or on-site? Look for keywords like "remote", "work from home", "hybrid", "on-site", "office" in the location and description.
-2. Does it have a job poster/recruiter with name and LinkedIn URL?
-3. What technologies are mentioned?
-4. Should we qualify this job based on our criteria?
+=== ABOUT ${criteria.companyName.toUpperCase()} ===
+What We Do: ${criteria.companyDescription || 'We provide tech talent solutions'}
+Our Tech Stack: ${criteria.techStack.join(', ')}
+Sender: ${criteria.senderName}, ${criteria.senderTitle}
 
-JOBS TO ANALYZE:
+=== YOUR TASK ===
+For each job:
+1. Detect if it's Remote, Hybrid, or On-site
+2. Extract the tech stack mentioned
+3. Determine if it qualifies based on our criteria
+4. If qualified, compose a personalized outreach message
+
+=== HOW TO DETECT WORK LOCATION ===
+Search in this ORDER (priority):
+1. DESCRIPTION (PRIMARY): Look for patterns especially at the START like:
+   - "Remote – Israel", "Remote - US", "100% Remote", "Fully Remote" → REMOTE
+   - "Hybrid (Flexible)", "Hybrid - Tel Aviv", "Remote/Hybrid" → HYBRID
+   - "On-site Tel Aviv", "Office based", no remote mention → ONSITE
+
+2. TITLE (SECONDARY): May contain "(Remote)", "- Remote", "Hybrid"
+
+3. LOCATION (SECONDARY): "Remote", "Hybrid", or city-only = onsite
+
+Rules:
+- "Remote" clearly stated (not just "remote work options") → workLocation: "remote"
+- "Hybrid" anywhere → workLocation: "hybrid"  
+- Only city/country with no remote/hybrid → workLocation: "onsite"
+
+=== QUALIFICATION CRITERIA ===
+Work Location: ${workLocationInstruction}
+Tech Match: Should mention at least one of our technologies: ${criteria.techStack.join(', ')}
+
+=== JOBS TO ANALYZE ===
 ${JSON.stringify(jobsData, null, 2)}
 
-Respond ONLY with a valid JSON array in this exact format (no markdown, no code blocks):
+=== RESPONSE FORMAT ===
+Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
 [
   {
     "jobId": "string",
     "qualified": boolean,
     "confidence": number (0-100),
-    "reason": "string explaining why qualified or not",
+    "reason": "Brief explanation",
     "extractedData": {
       "isRemote": boolean,
       "workLocation": "remote" | "hybrid" | "onsite" | "unknown",
-      "hasPoster": boolean,
-      "posterName": "string or null",
-      "posterTitle": "string or null", 
-      "posterLinkedIn": "string or null",
-      "techStack": ["array of detected technologies"],
-      "seniorityLevel": "junior" | "mid" | "senior" | "lead" | "staff",
-      "companySize": "string or null"
+      "detectedFrom": "description" | "title" | "location" | "none",
+      "techStack": ["array of detected technologies from our list"]
+    },
+    "message": {
+      "subject": "Subject line if qualified, null otherwise",
+      "body": "Message body if qualified, null otherwise"
     }
   }
-]`;
+]
+
+=== MESSAGE GUIDELINES (for qualified jobs ONLY) ===
+- Address by first name if posterName exists
+- Reference their specific role at their company
+- Mention 2-3 matching technologies from their job
+- Tone: ${toneInstructions}
+- Sign as: ${criteria.senderName}, ${criteria.senderTitle} at ${criteria.companyName}
+- Subject: max 50 chars, compelling and specific
+- Body: max 120 words, focused and actionable`;
 
     try {
         const response = await fetch(endpoint, {
@@ -117,7 +191,7 @@ Respond ONLY with a valid JSON array in this exact format (no markdown, no code 
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: 0.2,
+                    temperature: 0.3,
                     maxOutputTokens: 8192,
                 }
             })
@@ -153,18 +227,14 @@ Respond ONLY with a valid JSON array in this exact format (no markdown, no code 
             jobId: job.id,
             qualified: false,
             confidence: 0,
-            reason: 'AI qualification failed - using fallback',
+            reason: `AI qualification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
             extractedData: {
-                isRemote: job.isRemote || false,
-                workLocation: job.isRemote ? 'remote' as const : 'unknown' as const,
-                hasPoster: !!job.poster?.name,
-                posterName: job.poster?.name,
-                posterTitle: job.poster?.title,
-                posterLinkedIn: job.poster?.linkedInUrl,
-                techStack: job.techStack || [],
-                seniorityLevel: 'mid',
-                companySize: job.companySize
-            }
+                isRemote: false,
+                workLocation: 'unknown' as const,
+                detectedFrom: 'none' as const,
+                techStack: job.techStack || []
+            },
+            message: null
         }));
     }
 }

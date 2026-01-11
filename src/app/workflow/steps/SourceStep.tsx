@@ -56,12 +56,12 @@ export default function SourceStep() {
                 postedDate: item.postedAt || item.publishedAt || item.datePosted,
                 scrapedAt: item.scrapedAt || new Date().toISOString(),
 
-                // Job poster info
-                poster: item.poster || item.recruiter || (item.recruiterName ? {
-                    name: item.recruiterName || item.posterName,
-                    title: item.recruiterTitle || item.posterTitle || 'Recruiter',
-                    linkedInUrl: item.recruiterUrl || item.posterUrl || item.recruiterLinkedIn || ''
-                } : undefined),
+                // Job poster info - map from various possible field names
+                poster: (item.posterFullName || item.posterProfileUrl || item.poster || item.recruiter || item.recruiterName) ? {
+                    name: item.posterFullName || item.recruiterName || item.posterName || item.poster?.name || '',
+                    title: item.recruiterTitle || item.posterTitle || item.poster?.title || 'Recruiter',
+                    linkedInUrl: item.posterProfileUrl || item.recruiterUrl || item.posterUrl || item.recruiterLinkedIn || item.poster?.linkedInUrl || ''
+                } : undefined,
 
                 // Additional metadata
                 techStack: item.techStack || item.skills || extractTechStack(item.description || ''),
