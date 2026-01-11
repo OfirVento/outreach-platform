@@ -31,7 +31,8 @@ export async function qualifyJobsWithGemini(
         companyDescription: string;
     }
 ): Promise<QualificationResult[]> {
-    const model = 'gemini-1.5-flash';
+    // Use gemini-2.0-flash which is the currently available model
+    const model = 'gemini-2.0-flash';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // Process in batches of 10 to avoid token limits
