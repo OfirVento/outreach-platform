@@ -27,7 +27,7 @@ export async function qualifyJobsWithGemini(
         companyDescription: string;
     }
 ): Promise<QualificationResult[]> {
-    const model = 'gemini-2.0-flash';
+    const model = 'gemini-2.5-flash-preview-09-2025';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // Pre-filter jobs based on poster requirement (done programmatically)
@@ -151,8 +151,9 @@ Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 4096,
+                    temperature: 0.1, // Low temperature for consistent, deterministic classification
+                    maxOutputTokens: 8192, // Enough for 50 jobs
+                    responseMimeType: 'application/json' // Force JSON response format
                 }
             })
         });
