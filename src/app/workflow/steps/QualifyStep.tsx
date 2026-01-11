@@ -1,0 +1,354 @@
+'use client';
+
+import { useState } from 'react';
+import { useNewWorkflowStore } from '../../../store/newWorkflowStore';
+import { useSettingsStore } from '../../../store/settingsStore';
+import type { JobPost } from '../../../types';
+import {
+    Filter,
+    Check,
+    X,
+    Sparkles,
+    ChevronDown,
+    ChevronUp,
+    Building2,
+    Code2,
+    Users,
+    AlertCircle,
+    CheckCircle,
+    XCircle
+} from 'lucide-react';
+
+export default function QualifyStep() {
+    const { currentRun, qualifyJob, qualifyAllByTechStack, updateStepStatus, goToNextStep } = useNewWorkflowStore();
+    const { businessContext } = useSettingsStore();
+    const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+    const [isAutoQualifying, setIsAutoQualifying] = useState(false);
+
+    const jobs = currentRun?.sourceData.jobs || [];
+    const qualifiedJobs = currentRun?.qualifyData.qualifiedJobs || [];
+    const disqualifiedJobs = currentRun?.qualifyData.disqualifiedJobs || [];
+    const reasons = currentRun?.qualifyData.qualificationReasons || {};
+
+    const unprocessedJobs = jobs.filter(j =>
+        !qualifiedJobs.some(qj => qj.id === j.id) &&
+        !disqualifiedJobs.some(dj => dj.id === j.id)
+    );
+
+    // Get configured tech stack
+    const configuredTechStack = Object.values(businessContext.techStack).flat();
+
+    const handleAutoQualify = async () => {
+        setIsAutoQualifying(true);
+
+        // Simulate AI processing delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        qualifyAllByTechStack(configuredTechStack, businessContext.qualification.workLocation);
+        updateStepStatus('qualify', 'completed');
+        setIsAutoQualifying(false);
+    };
+
+    const handleQualify = (jobId: string, qualified: boolean, reason?: string) => {
+        qualifyJob(jobId, qualified, reason);
+
+        // Check if all jobs are processed
+        const remainingUnprocessed = jobs.filter(j =>
+            j.id !== jobId &&
+            !qualifiedJobs.some(qj => qj.id === j.id) &&
+            !disqualifiedJobs.some(dj => dj.id === j.id)
+        );
+
+        if (remainingUnprocessed.length === 0) {
+            updateStepStatus('qualify', 'completed');
+        }
+    };
+
+    const getJobStatus = (jobId: string): 'qualified' | 'disqualified' | 'pending' => {
+        if (qualifiedJobs.some(j => j.id === jobId)) return 'qualified';
+        if (disqualifiedJobs.some(j => j.id === jobId)) return 'disqualified';
+        return 'pending';
+    };
+
+    const getTechMatch = (job: JobPost): string[] => {
+        const jobTech = job.techStack || [];
+        return configuredTechStack.filter(tech =>
+            jobTech.some(jt => jt.toLowerCase().includes(tech.toLowerCase()))
+        );
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Qualification Panel */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <Filter className="w-5 h-5 text-purple-600" />
+                        Qualify Leads by Tech Stack
+                    </h2>
+
+                    {configuredTechStack.length > 0 && (
+                        <button
+                            onClick={handleAutoQualify}
+                            disabled={isAutoQualifying || jobs.length === 0}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isAutoQualifying
+                                ? 'bg-purple-100 text-purple-600'
+                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                                }`}
+                        >
+                            <Sparkles className={`w-4 h-4 ${isAutoQualifying ? 'animate-pulse' : ''}`} />
+                            {isAutoQualifying ? 'Qualifying...' : 'Auto-Qualify All'}
+                        </button>
+                    )}
+                </div>
+
+                {/* Tech Stack Being Matched */}
+                {configuredTechStack.length > 0 ? (
+                    <div className="bg-purple-50 rounded-lg p-4 mb-4">
+                        <p className="text-sm text-purple-700 mb-2 font-medium">
+                            Matching against your configured tech stack:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {configuredTechStack.map((tech) => (
+                                <span
+                                    key={tech}
+                                    className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                                >
+                                    {tech}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-amber-50 rounded-lg p-4 mb-4 flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                        <p className="text-sm text-amber-700">
+                            No tech stack configured. Please go to{' '}
+                            <a href="/settings" className="font-medium underline">Settings</a>
+                            {' '}to define the technologies you provide.
+                        </p>
+                    </div>
+                )}
+
+                {/* Work Location Preference */}
+                <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-blue-700 mb-2 font-medium">
+                        Work Location Preference:
+                    </p>
+                    <div className="flex gap-2">
+                        {[
+                            { value: 'remote', label: '🌍 Remote Only', desc: 'Only remote positions' },
+                            { value: 'hybrid', label: '🏠 Hybrid', desc: 'Remote or hybrid' },
+                            { value: 'onsite', label: '🏢 On-site', desc: 'Includes on-site' },
+                            { value: 'any', label: '✓ Any', desc: 'All locations' }
+                        ].map((option) => (
+                            <button
+                                key={option.value}
+                                onClick={() => useSettingsStore.getState().updateBusinessContext({
+                                    qualification: { ...businessContext.qualification, workLocation: option.value as any }
+                                })}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${businessContext.qualification.workLocation === option.value
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                    }`}
+                                title={option.desc}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-xs text-blue-600 mt-2">
+                        {businessContext.qualification.workLocation === 'remote' && '✓ Filtering for remote-only positions'}
+                        {businessContext.qualification.workLocation === 'hybrid' && '✓ Including remote and hybrid positions'}
+                        {businessContext.qualification.workLocation === 'onsite' && '✓ Including all work arrangements'}
+                        {businessContext.qualification.workLocation === 'any' && '✓ No location filter applied'}
+                    </p>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-gray-900">{unprocessedJobs.length}</p>
+                        <p className="text-sm text-gray-500">To Review</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-green-600">{qualifiedJobs.length}</p>
+                        <p className="text-sm text-gray-500">Qualified</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-red-600">{disqualifiedJobs.length}</p>
+                        <p className="text-sm text-gray-500">Disqualified</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Jobs to Review */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">
+                    All Jobs ({jobs.length})
+                </h2>
+
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                    {jobs.map((job) => {
+                        const status = getJobStatus(job.id);
+                        const techMatch = getTechMatch(job);
+                        const isExpanded = expandedJobId === job.id;
+                        const reason = reasons[job.id];
+
+                        return (
+                            <div
+                                key={job.id}
+                                className={`border rounded-lg transition-all ${status === 'qualified' ? 'border-green-200 bg-green-50/50' :
+                                    status === 'disqualified' ? 'border-red-200 bg-red-50/50' :
+                                        'border-gray-200'
+                                    }`}
+                            >
+                                <div className="p-4">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                {status === 'qualified' && <CheckCircle className="w-5 h-5 text-green-600" />}
+                                                {status === 'disqualified' && <XCircle className="w-5 h-5 text-red-500" />}
+                                                <h3 className="font-semibold text-gray-900">{job.title}</h3>
+                                            </div>
+                                            <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+                                                <span className="flex items-center gap-1">
+                                                    <Building2 className="w-3.5 h-3.5" />
+                                                    {job.company}
+                                                </span>
+                                                {job.companySize && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Users className="w-3.5 h-3.5" />
+                                                        {job.companySize}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Tech Match */}
+                                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                                {/* Work Location Badge */}
+                                                {job.isRemote && (
+                                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                                        🌍 Remote
+                                                    </span>
+                                                )}
+                                                {!job.isRemote && job.location?.toLowerCase().includes('hybrid') && (
+                                                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                                                        🏠 Hybrid
+                                                    </span>
+                                                )}
+                                                {!job.isRemote && !job.location?.toLowerCase().includes('hybrid') && (
+                                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                                                        🏢 On-site
+                                                    </span>
+                                                )}
+
+                                                {techMatch.length > 0 ? (
+                                                    techMatch.map((tech) => (
+                                                        <span
+                                                            key={tech}
+                                                            className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium"
+                                                        >
+                                                            <Check className="w-3 h-3" />
+                                                            {tech}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">No tech stack match</span>
+                                                )}
+
+                                                {/* Other tech in job */}
+                                                {job.techStack?.filter(t => !techMatch.some(m => t.toLowerCase().includes(m.toLowerCase()))).slice(0, 3).map((tech) => (
+                                                    <span
+                                                        key={tech}
+                                                        className="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs"
+                                                    >
+                                                        {tech}
+                                                    </span>
+                                                ))}
+                                            </div>
+
+                                            {reason && (
+                                                <p className="text-xs text-gray-500 mt-2 italic">{reason}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="flex items-center gap-2 ml-4">
+                                            <button
+                                                onClick={() => handleQualify(job.id, true, `Matches: ${techMatch.join(', ') || 'Manual approval'}`)}
+                                                className={`p-2 rounded-lg transition-all ${status === 'qualified'
+                                                    ? 'bg-green-600 text-white'
+                                                    : 'bg-gray-100 hover:bg-green-100 text-gray-600 hover:text-green-600'
+                                                    }`}
+                                                title="Qualify"
+                                            >
+                                                <Check className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleQualify(job.id, false, 'Manually disqualified')}
+                                                className={`p-2 rounded-lg transition-all ${status === 'disqualified'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600'
+                                                    }`}
+                                                title="Disqualify"
+                                            >
+                                                <X className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                                                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                                title="Show Details"
+                                            >
+                                                {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Expanded Details */}
+                                    {isExpanded && (
+                                        <div className="mt-4 pt-4 border-t border-gray-200">
+                                            <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-6">
+                                                {job.description || 'No description available'}
+                                            </p>
+                                            {job.poster && (
+                                                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                                    <p className="text-xs text-gray-500 mb-1">Job Poster:</p>
+                                                    <p className="font-medium text-gray-900">{job.poster.name}</p>
+                                                    <p className="text-sm text-gray-600">{job.poster.title}</p>
+                                                    {job.poster.linkedInUrl && (
+                                                        <a
+                                                            href={job.poster.linkedInUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-sm text-blue-600 hover:underline mt-1 inline-block"
+                                                        >
+                                                            View LinkedIn Profile
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Continue Button */}
+            {qualifiedJobs.length > 0 && (
+                <div className="flex justify-end">
+                    <button
+                        onClick={goToNextStep}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    >
+                        Continue with {qualifiedJobs.length} Qualified Leads
+                        <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
