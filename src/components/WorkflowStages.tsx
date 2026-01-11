@@ -17,7 +17,7 @@ import { useWorkflowStore } from '../store/workflowStore';
 import clsx from 'clsx';
 import type { NodeType } from '../types';
 
-const stageIcons: Record<NodeType, any> = {
+const stageIcons: Partial<Record<NodeType, any>> = {
     linkedin_scrape: Search,
     job_extraction: FileText,
     job_validation: ShieldCheck,

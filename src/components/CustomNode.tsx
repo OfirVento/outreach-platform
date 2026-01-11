@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 
-const nodeIcons: Record<NodeType, any> = {
+const nodeIcons: Partial<Record<NodeType, any>> = {
     linkedin_scrape: Search,
     job_extraction: FileText,
     job_validation: ShieldCheck,
@@ -27,7 +27,7 @@ const nodeIcons: Record<NodeType, any> = {
     approval_gate: ShieldCheck,
 };
 
-const nodeColors: Record<NodeType, string> = {
+const nodeColors: Partial<Record<NodeType, string>> = {
     linkedin_scrape: 'bg-blue-500',
     job_extraction: 'bg-purple-500',
     job_validation: 'bg-blue-600',

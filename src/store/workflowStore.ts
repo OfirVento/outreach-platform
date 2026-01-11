@@ -164,7 +164,7 @@ export const useWorkflowStore = create<WorkflowState>()(
 
             addNode: (type, position) => {
                 const id = Math.random().toString(36).substring(7);
-                const labels: Record<NodeType, string> = {
+                const labels: Partial<Record<NodeType, string>> = {
                     linkedin_scrape: 'LinkedIn Scrape',
                     job_extraction: 'Job Extraction',
                     job_validation: 'Job Validation',
@@ -182,7 +182,7 @@ export const useWorkflowStore = create<WorkflowState>()(
                     type,
                     position,
                     data: {
-                        label: labels[type],
+                        label: labels[type] || type,
                         status: 'pending',
                         config: {},
                     },
