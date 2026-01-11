@@ -44,7 +44,11 @@ export default function QualifyStep() {
         // Simulate AI processing delay
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        qualifyAllByTechStack(configuredTechStack, businessContext.qualification.workLocation);
+        qualifyAllByTechStack(
+            configuredTechStack,
+            businessContext.qualification.workLocation,
+            businessContext.qualification.posterRequired || 'any'
+        );
         updateStepStatus('qualify', 'completed');
         setIsAutoQualifying(false);
     };
@@ -130,39 +134,75 @@ export default function QualifyStep() {
                     </div>
                 )}
 
-                {/* Work Location Preference */}
+                {/* Filters Row - Work Location & Poster Required */}
                 <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-blue-700 mb-2 font-medium">
-                        Work Location Preference:
-                    </p>
-                    <div className="flex gap-2">
-                        {[
-                            { value: 'remote', label: '🌍 Remote Only', desc: 'Only remote positions' },
-                            { value: 'hybrid', label: '🏠 Hybrid', desc: 'Remote or hybrid' },
-                            { value: 'onsite', label: '🏢 On-site', desc: 'Includes on-site' },
-                            { value: 'any', label: '✓ Any', desc: 'All locations' }
-                        ].map((option) => (
-                            <button
-                                key={option.value}
-                                onClick={() => useSettingsStore.getState().updateBusinessContext({
-                                    qualification: { ...businessContext.qualification, workLocation: option.value as any }
-                                })}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${businessContext.qualification.workLocation === option.value
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                    }`}
-                                title={option.desc}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
+                    <div className="flex flex-wrap gap-8 justify-between">
+                        {/* Work Location Preference */}
+                        <div className="flex-1 min-w-[280px]">
+                            <p className="text-sm text-blue-700 mb-2 font-medium">
+                                Work Location Preference:
+                            </p>
+                            <div className="flex gap-2 flex-wrap">
+                                {[
+                                    { value: 'remote', label: '🌍 Remote Only', desc: 'Only remote positions' },
+                                    { value: 'hybrid', label: '🏠 Hybrid', desc: 'Remote or hybrid' },
+                                    { value: 'onsite', label: '🏢 On-site', desc: 'Includes on-site' },
+                                    { value: 'any', label: '✓ Any', desc: 'All locations' }
+                                ].map((option) => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => useSettingsStore.getState().updateBusinessContext({
+                                            qualification: { ...businessContext.qualification, workLocation: option.value as any }
+                                        })}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${businessContext.qualification.workLocation === option.value
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                            }`}
+                                        title={option.desc}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-blue-600 mt-2">
+                                {businessContext.qualification.workLocation === 'remote' && '✓ Filtering for remote-only positions'}
+                                {businessContext.qualification.workLocation === 'hybrid' && '✓ Including remote and hybrid positions'}
+                                {businessContext.qualification.workLocation === 'onsite' && '✓ Including all work arrangements'}
+                                {businessContext.qualification.workLocation === 'any' && '✓ No location filter applied'}
+                            </p>
+                        </div>
+
+                        {/* Poster Name Required */}
+                        <div className="min-w-[200px]">
+                            <p className="text-sm text-blue-700 mb-2 font-medium">
+                                Poster Name:
+                            </p>
+                            <div className="flex gap-2">
+                                {[
+                                    { value: 'required', label: '👤 Required', desc: 'Only jobs with poster name' },
+                                    { value: 'any', label: '✓ Any', desc: 'All jobs' }
+                                ].map((option) => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => useSettingsStore.getState().updateBusinessContext({
+                                            qualification: { ...businessContext.qualification, posterRequired: option.value as any }
+                                        })}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${(businessContext.qualification.posterRequired || 'any') === option.value
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                            }`}
+                                        title={option.desc}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-blue-600 mt-2">
+                                {(businessContext.qualification.posterRequired || 'any') === 'required' && '✓ Only jobs with poster name'}
+                                {(businessContext.qualification.posterRequired || 'any') === 'any' && '✓ All jobs included'}
+                            </p>
+                        </div>
                     </div>
-                    <p className="text-xs text-blue-600 mt-2">
-                        {businessContext.qualification.workLocation === 'remote' && '✓ Filtering for remote-only positions'}
-                        {businessContext.qualification.workLocation === 'hybrid' && '✓ Including remote and hybrid positions'}
-                        {businessContext.qualification.workLocation === 'onsite' && '✓ Including all work arrangements'}
-                        {businessContext.qualification.workLocation === 'any' && '✓ No location filter applied'}
-                    </p>
                 </div>
 
                 {/* Stats */}
@@ -240,6 +280,17 @@ export default function QualifyStep() {
                                                 {!job.isRemote && !job.location?.toLowerCase().includes('hybrid') && (
                                                     <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
                                                         🏢 On-site
+                                                    </span>
+                                                )}
+
+                                                {/* Poster Badge */}
+                                                {job.poster?.name ? (
+                                                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                                        👤 {job.poster.name}
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-1 bg-gray-100 text-gray-400 rounded-full text-xs font-medium">
+                                                        👤 No poster
                                                     </span>
                                                 )}
 

@@ -129,7 +129,7 @@ interface NewWorkflowState {
 
     // Qualify Step
     qualifyJob: (jobId: string, qualified: boolean, reason?: string) => void;
-    qualifyAllByTechStack: (techStack: string[], workLocation?: 'remote' | 'hybrid' | 'onsite' | 'any') => void;
+    qualifyAllByTechStack: (techStack: string[], workLocation?: 'remote' | 'hybrid' | 'onsite' | 'any', posterRequired?: 'required' | 'any') => void;
 
     // Enrich Step
     addContacts: (contacts: Contact[]) => void;
@@ -300,13 +300,49 @@ export const useNewWorkflowStore = create<NewWorkflowState>()(
             clearJobs: () => {
                 set((state) => {
                     if (!state.currentRun) return state;
+                    const updatedRun = {
+                        ...state.currentRun,
+                        sourceData: { jobs: [], totalImported: 0 },
+                        qualifyData: {
+                            qualifiedJobs: [],
+                            disqualifiedJobs: [],
+                            qualificationReasons: {}
+                        },
+                        enrichData: {
+                            contacts: [],
+                            enrichmentStats: { fromJobPoster: 0, fromEnrichment: 0, failed: 0 }
+                        },
+                        composeData: {
+                            messages: [],
+                            approvedCount: 0
+                        },
+                        exportData: {
+                            rows: [],
+                            exportedAt: undefined,
+                            spreadsheetUrl: undefined
+                        },
+                        stats: {
+                            totalJobs: 0,
+                            qualifiedJobs: 0,
+                            totalContacts: 0,
+                            totalMessages: 0,
+                            readyToSend: 0
+                        },
+                        steps: {
+                            source: { status: 'pending' as const },
+                            qualify: { status: 'pending' as const },
+                            enrich: { status: 'pending' as const },
+                            compose: { status: 'pending' as const },
+                            export: { status: 'pending' as const }
+                        },
+                        updatedAt: new Date().toISOString()
+                    };
                     return {
-                        currentRun: {
-                            ...state.currentRun,
-                            sourceData: { jobs: [], totalImported: 0 },
-                            stats: { ...state.currentRun.stats, totalJobs: 0 },
-                            updatedAt: new Date().toISOString()
-                        }
+                        currentRun: updatedRun,
+                        runHistory: state.runHistory.map(r => r.id === updatedRun.id ? updatedRun : r),
+                        selectedJobIds: [],
+                        selectedContactIds: [],
+                        selectedMessageIds: []
                     };
                 });
             },
@@ -346,7 +382,7 @@ export const useNewWorkflowStore = create<NewWorkflowState>()(
                 });
             },
 
-            qualifyAllByTechStack: (requiredTechStack, workLocation = 'any') => {
+            qualifyAllByTechStack: (requiredTechStack, workLocation = 'any', posterRequired = 'any') => {
                 set((state) => {
                     if (!state.currentRun) return state;
 
@@ -380,21 +416,33 @@ export const useNewWorkflowStore = create<NewWorkflowState>()(
                         }
                         // 'onsite' and 'any' accept all locations
 
-                        if (hasMatch && locationMatch) {
+                        // Check poster requirement
+                        let posterMatch = true;
+                        let posterReason = '';
+
+                        if (posterRequired === 'required') {
+                            posterMatch = !!(job.poster?.name);
+                            if (!posterMatch) {
+                                posterReason = 'No poster name';
+                            }
+                        }
+
+                        if (hasMatch && locationMatch && posterMatch) {
                             qualifiedJobs.push(job);
                             const matchedTech = jobTech.filter(t =>
                                 requiredTechStack.some(rt => t.toLowerCase().includes(rt.toLowerCase()))
                             ).join(', ');
-                            reasons[job.id] = `Matches: ${matchedTech}${job.isRemote ? ' (Remote ✓)' : ''}`;
+                            let qualifyReason = `Matches: ${matchedTech}`;
+                            if (job.isRemote) qualifyReason += ' (Remote ✓)';
+                            if (job.poster?.name) qualifyReason += ' (Poster ✓)';
+                            reasons[job.id] = qualifyReason;
                         } else {
                             disqualifiedJobs.push(job);
-                            if (!hasMatch && !locationMatch) {
-                                reasons[job.id] = `No tech match & ${locationReason}`;
-                            } else if (!hasMatch) {
-                                reasons[job.id] = 'No tech stack match';
-                            } else {
-                                reasons[job.id] = locationReason;
-                            }
+                            const failReasons: string[] = [];
+                            if (!hasMatch) failReasons.push('No tech match');
+                            if (!locationMatch) failReasons.push(locationReason);
+                            if (!posterMatch) failReasons.push(posterReason);
+                            reasons[job.id] = failReasons.join(' & ');
                         }
                     });
 

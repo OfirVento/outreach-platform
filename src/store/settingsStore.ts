@@ -45,6 +45,7 @@ export interface BusinessContext {
         excludeIndustries: string[];
         cooldownDays: number; // Don't re-contact within X days
         workLocation: 'remote' | 'hybrid' | 'onsite' | 'any'; // Work location preference
+        posterRequired: 'required' | 'any'; // Whether job poster name is required
     };
 }
 
@@ -146,7 +147,8 @@ const defaultBusinessContext: BusinessContext = {
         excludeCompetitors: [],
         excludeIndustries: [],
         cooldownDays: 90,
-        workLocation: 'remote' // Default to remote only
+        workLocation: 'remote', // Default to remote only
+        posterRequired: 'any' // Default to any (not required)
     }
 };
 
