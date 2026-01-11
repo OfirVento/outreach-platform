@@ -105,29 +105,40 @@ async function qualifyBatch(
 
 === YOUR TASK ===
 For each job, carefully analyze the FULL description, title, and location to:
-1. Determine if the job allows REMOTE work (fully remote, partly remote, work from home, etc.)
+1. Determine if the job allows REMOTE work
 2. Extract relevant technologies mentioned
 3. Qualify based on our criteria
 
-=== WORK LOCATION DETECTION ===
-Thoroughly search the ENTIRE job description, title, and location field for ANY indication of remote work flexibility.
+=== WORK LOCATION DETECTION - CRITICAL ===
+⚠️ SEARCH THE ENTIRE JOB TEXT (title + location + full description) for these EXACT keywords (case-insensitive):
 
-Look for (but not limited to):
-- Explicit remote mentions anywhere in the text
-- Work from home policies
-- Location flexibility statements
-- Distributed team mentions
-- "Remote" in any context related to work arrangement
-- Hybrid work arrangements
-- Flexible location policies
-- "Work from anywhere" or similar phrases
-- Country/region-specific remote options (e.g., "Remote - Israel", "US Remote")
+MUST CHECK FOR THESE KEYWORDS:
+- "remote" (anywhere in the text)
+- "remote first"
+- "remote friendly"
+- "remote-first"
+- "remote-friendly"
+- "work from home"
+- "WFH"
+- "work remotely"
+- "remote work"
+- "fully remote"
+- "100% remote"
+- "remote position"
+- "remote opportunity"
+- "remote option"
+- "hybrid"
+- "flexible location"
+- "work from anywhere"
+- "distributed team"
 
-IMPORTANT: 
-- Search the ENTIRE description, not just the beginning
-- If you find ANY remote work indication, classify as "remote" or "hybrid"
-- Only classify as "onsite" if there is NO remote indication found
-- Provide the EXACT quote/text where you found the remote indication
+SEARCH RULES:
+1. Read the ENTIRE description from start to end - do not skip any section
+2. If ANY of the above keywords appear ANYWHERE in the job → classify as "remote" or "hybrid"
+3. The word "remote" appearing in benefits, about section, or anywhere = REMOTE JOB
+4. Only mark as "onsite" if ZERO remote-related keywords are found
+5. Provide the EXACT text snippet where you found the keyword
+
 
 === QUALIFICATION CRITERIA ===
 ${criteria.workLocation === 'remote' ? '⚠️ We want REMOTE jobs! Only jobs with remote work option qualify.' : ''}
