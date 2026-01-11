@@ -251,15 +251,52 @@ export const useSettingsStore = create<SettingsState>()(
             name: 'outreach-settings-v2',
             version: 2,
             migrate: (persistedState: any, version: number) => {
-                // If coming from v1 or no version, reset to new defaults
+                // IMPORTANT: Always preserve API keys during migration!
+                const preservedApiKeys = {
+                    gemini: persistedState?.integrations?.gemini?.apiKey || '',
+                    apify: persistedState?.integrations?.apify?.apiKey || '',
+                    clay: persistedState?.integrations?.clay?.apiKey || '',
+                    apollo: persistedState?.integrations?.apollo?.apiKey || '',
+                    hunter: persistedState?.integrations?.hunter?.apiKey || '',
+                    claude: persistedState?.integrations?.claude?.apiKey || ''
+                };
+
+                // If coming from v1 or no version, reset to new defaults but keep API keys
                 if (version < 2) {
                     return {
-                        businessContext: defaultBusinessContext,
-                        integrations: defaultIntegrations,
+                        businessContext: {
+                            ...defaultBusinessContext,
+                            // Preserve any existing business context
+                            companyName: persistedState?.businessContext?.companyName || defaultBusinessContext.companyName,
+                            whatWeDo: persistedState?.businessContext?.whatWeDo || defaultBusinessContext.whatWeDo,
+                            senderName: persistedState?.businessContext?.senderName || defaultBusinessContext.senderName,
+                            senderTitle: persistedState?.businessContext?.senderTitle || defaultBusinessContext.senderTitle
+                        },
+                        integrations: {
+                            ...defaultIntegrations,
+                            // Preserve ALL API keys
+                            gemini: { ...defaultIntegrations.gemini, apiKey: preservedApiKeys.gemini },
+                            apify: { ...defaultIntegrations.apify, apiKey: preservedApiKeys.apify },
+                            clay: { ...defaultIntegrations.clay, apiKey: preservedApiKeys.clay },
+                            apollo: { ...defaultIntegrations.apollo, apiKey: preservedApiKeys.apollo },
+                            hunter: { ...defaultIntegrations.hunter, apiKey: preservedApiKeys.hunter },
+                            claude: { ...defaultIntegrations.claude, apiKey: preservedApiKeys.claude }
+                        },
                         safety: defaultSafety
                     };
                 }
                 return persistedState;
+            },
+            // Ensure API keys are merged properly on rehydration
+            merge: (persistedState: any, currentState: any) => {
+                return {
+                    ...currentState,
+                    ...persistedState,
+                    integrations: {
+                        ...currentState.integrations,
+                        ...persistedState?.integrations
+                    }
+                };
             }
         }
     )

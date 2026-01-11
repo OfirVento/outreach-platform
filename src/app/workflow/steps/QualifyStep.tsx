@@ -379,7 +379,7 @@ export default function QualifyStep() {
                     All Jobs ({jobs.length})
                 </h2>
 
-                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                <div className="space-y-3">
                     {jobs.map((job) => {
                         const status = getJobStatus(job.id);
                         const techMatch = getTechMatch(job);

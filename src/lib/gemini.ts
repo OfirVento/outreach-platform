@@ -126,16 +126,16 @@ Sender: ${criteria.senderName}, ${criteria.senderTitle}
 
 === YOUR TASK ===
 For each job:
-1. Detect if it's Remote, Hybrid, or On-site
+1. Detect if it's Remote, Hybrid, or On-site (check description FIRST)
 2. Extract the tech stack mentioned
 3. Determine if it qualifies based on our criteria
-4. If qualified, compose a personalized outreach message
+4. **ONLY generate outreach messages for QUALIFIED jobs** (jobs that meet ALL criteria)
 
 === HOW TO DETECT WORK LOCATION ===
 Search in this ORDER (priority):
 1. DESCRIPTION (PRIMARY): Look for patterns especially at the START like:
-   - "Remote – Israel", "Remote - US", "100% Remote", "Fully Remote" → REMOTE
-   - "Hybrid (Flexible)", "Hybrid - Tel Aviv", "Remote/Hybrid" → HYBRID
+   - "Remote – Israel", "Remote - US", "100% Remote", "Fully Remote", "Work from home", "WFH" → REMOTE
+   - "Hybrid (Flexible)", "Hybrid - Tel Aviv", "Remote/Hybrid", "Flexible location" → HYBRID
    - "On-site Tel Aviv", "Office based", no remote mention → ONSITE
 
 2. TITLE (SECONDARY): May contain "(Remote)", "- Remote", "Hybrid"
@@ -143,13 +143,20 @@ Search in this ORDER (priority):
 3. LOCATION (SECONDARY): "Remote", "Hybrid", or city-only = onsite
 
 Rules:
-- "Remote" clearly stated (not just "remote work options") → workLocation: "remote"
-- "Hybrid" anywhere → workLocation: "hybrid"  
-- Only city/country with no remote/hybrid → workLocation: "onsite"
+- "Remote" clearly stated (not just "remote work options") → workLocation: "remote", isRemote: true
+- "Hybrid" anywhere → workLocation: "hybrid", isRemote: false
+- Only city/country with no remote/hybrid → workLocation: "onsite", isRemote: false
 
 === QUALIFICATION CRITERIA ===
+${criteria.workLocation === 'remote' ? `
+⚠️ IMPORTANT: Only REMOTE jobs qualify! 
+- If workLocation is "hybrid" or "onsite" → qualified: false, message: null
+- Do NOT generate messages for non-remote jobs
+` : ''}
 Work Location: ${workLocationInstruction}
 Tech Match: Should mention at least one of our technologies: ${criteria.techStack.join(', ')}
+
+A job qualifies ONLY if it meets ALL criteria above. If it fails ANY criteria, set qualified: false and message: null.
 
 === JOBS TO ANALYZE ===
 ${JSON.stringify(jobsData, null, 2)}
@@ -161,7 +168,7 @@ Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
     "jobId": "string",
     "qualified": boolean,
     "confidence": number (0-100),
-    "reason": "Brief explanation",
+    "reason": "Brief explanation including work location found",
     "extractedData": {
       "isRemote": boolean,
       "workLocation": "remote" | "hybrid" | "onsite" | "unknown",
@@ -169,13 +176,14 @@ Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
       "techStack": ["array of detected technologies from our list"]
     },
     "message": {
-      "subject": "Subject line if qualified, null otherwise",
-      "body": "Message body if qualified, null otherwise"
+      "subject": "Subject line ONLY if qualified, otherwise null",
+      "body": "Message body ONLY if qualified, otherwise null"
     }
   }
 ]
 
-=== MESSAGE GUIDELINES (for qualified jobs ONLY) ===
+=== MESSAGE GUIDELINES (for QUALIFIED jobs ONLY) ===
+⚠️ Generate messages ONLY for jobs where qualified: true
 - Address by first name if posterName exists
 - Reference their specific role at their company
 - Mention 2-3 matching technologies from their job
