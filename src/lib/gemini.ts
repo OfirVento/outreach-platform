@@ -27,7 +27,7 @@ export async function qualifyJobsWithGemini(
         companyDescription: string;
     }
 ): Promise<QualificationResult[]> {
-    const model = 'gemini-2.5-flash-preview-09-2025';
+    const model = 'gemini-2.5-flash';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // Pre-filter jobs based on poster requirement (done programmatically)
