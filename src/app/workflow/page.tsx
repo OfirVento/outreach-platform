@@ -40,11 +40,15 @@ export default function WorkflowPage() {
 
     useEffect(() => {
         setMounted(true);
-        // Create a new run if none exists
-        if (!currentRun) {
+    }, []);
+
+    // Separate effect to create run after mount (to ensure hydration has happened)
+    useEffect(() => {
+        if (mounted && !currentRun) {
+            // Only create a new run if there's no persisted run
             createNewRun('Campaign ' + new Date().toLocaleDateString());
         }
-    }, []);
+    }, [mounted, currentRun, createNewRun]);
 
     if (!mounted || !currentRun) {
         return (
@@ -84,8 +88,8 @@ export default function WorkflowPage() {
                             <button
                                 onClick={() => setMode('build')}
                                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${mode === 'build'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 <Settings className="w-4 h-4" />
@@ -94,8 +98,8 @@ export default function WorkflowPage() {
                             <button
                                 onClick={() => setMode('run')}
                                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${mode === 'run'
-                                        ? 'bg-blue-600 text-white shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 <Play className="w-4 h-4" />
@@ -186,10 +190,10 @@ export default function WorkflowPage() {
                                         <button
                                             onClick={() => useNewWorkflowStore.getState().setCurrentStep(step.id)}
                                             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive
-                                                    ? 'bg-blue-600 text-white shadow-md'
-                                                    : isCompleted || isPast
-                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                ? 'bg-blue-600 text-white shadow-md'
+                                                : isCompleted || isPast
+                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                                 }`}
                                         >
                                             {isCompleted ? (
@@ -214,8 +218,8 @@ export default function WorkflowPage() {
                                 onClick={goToPrevStep}
                                 disabled={isFirstStep}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isFirstStep
-                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
                                 <ArrowLeft className="w-4 h-4" />
@@ -225,8 +229,8 @@ export default function WorkflowPage() {
                                 onClick={goToNextStep}
                                 disabled={isLastStep}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isLastStep
-                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
                                     }`}
                             >
                                 Next

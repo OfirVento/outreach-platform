@@ -269,13 +269,15 @@ export const useNewWorkflowStore = create<NewWorkflowState>()(
                     const existingIds = new Set(state.currentRun.sourceData.jobs.map(j => j.id));
                     const newJobs = jobs.filter(j => !existingIds.has(j.id));
                     const allJobs = [...state.currentRun.sourceData.jobs, ...newJobs];
+                    const updatedRun = {
+                        ...state.currentRun,
+                        sourceData: { jobs: allJobs, totalImported: allJobs.length },
+                        stats: { ...state.currentRun.stats, totalJobs: allJobs.length },
+                        updatedAt: new Date().toISOString()
+                    };
                     return {
-                        currentRun: {
-                            ...state.currentRun,
-                            sourceData: { jobs: allJobs, totalImported: allJobs.length },
-                            stats: { ...state.currentRun.stats, totalJobs: allJobs.length },
-                            updatedAt: new Date().toISOString()
-                        }
+                        currentRun: updatedRun,
+                        runHistory: state.runHistory.map(r => r.id === updatedRun.id ? updatedRun : r)
                     };
                 });
             },
