@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useNewWorkflowStore } from '../../../store/newWorkflowStore';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { qualifyJobsWithGemini, type QualificationResult } from '../../../lib/gemini';
-import type { JobPost, GeneratedMessage } from '../../../types';
+import type { JobPost } from '../../../types';
 import {
     Filter,
     Check,
@@ -56,16 +56,13 @@ export default function QualifyStep() {
         setAiProgress({ current: 0, total: jobs.length });
 
         try {
-            // Call Gemini API to qualify jobs with full context
+            // Call Gemini API to qualify jobs (work location + tech match only)
             const results = await qualifyJobsWithGemini(jobs, apiKey, {
                 techStack: configuredTechStack,
                 workLocation: businessContext.qualification.workLocation,
                 posterRequired: businessContext.qualification.posterRequired || 'any',
                 companyName: businessContext.companyName,
-                companyDescription: businessContext.whatWeDo,
-                senderName: businessContext.senderName,
-                senderTitle: businessContext.senderTitle,
-                toneOfVoice: businessContext.toneOfVoice
+                companyDescription: businessContext.whatWeDo
             });
 
             // Process results and update the store
@@ -73,7 +70,6 @@ export default function QualifyStep() {
             const newDisqualifiedJobs: JobPost[] = [];
             const newReasons: Record<string, string> = {};
             const updatedJobs: JobPost[] = [];
-            const generatedMessages: GeneratedMessage[] = [];
 
             results.forEach((result, index) => {
                 setAiProgress({ current: index + 1, total: results.length });
@@ -94,27 +90,6 @@ export default function QualifyStep() {
 
                 if (result.qualified) {
                     newQualifiedJobs.push(updatedJob);
-
-                    // Store generated message for Compose step
-                    if (result.message?.subject && result.message?.body) {
-                        generatedMessages.push({
-                            id: `msg-${job.id}`,
-                            jobId: job.id,
-                            contactId: `contact-${job.id}`,
-                            sequenceStep: '1st_touch',
-                            channel: 'linkedin',
-                            subject: result.message.subject,
-                            message: result.message.body,
-                            personalizationFacts: [
-                                `Role: ${job.title}`,
-                                `Company: ${job.company}`,
-                                `Tech: ${(result.extractedData.techStack || []).join(', ')}`
-                            ],
-                            suggestedSendDate: new Date().toISOString(),
-                            status: 'draft',
-                            createdAt: new Date().toISOString()
-                        });
-                    }
                 } else {
                     newDisqualifiedJobs.push(updatedJob);
                 }
@@ -128,7 +103,7 @@ export default function QualifyStep() {
                 newReasons[result.jobId] = `[${result.confidence}%] ${result.reason} | Location: ${locationInfo}${hasPoster ? ` | Poster: ${job.poster?.name} ✓` : ''}`;
             });
 
-            // Update the store with AI-qualified results AND generated messages
+            // Update the store with AI-qualified results (no messages - those are generated in Compose)
             useNewWorkflowStore.setState((state) => {
                 if (!state.currentRun) return state;
                 return {
@@ -143,14 +118,9 @@ export default function QualifyStep() {
                             disqualifiedJobs: newDisqualifiedJobs,
                             qualificationReasons: newReasons
                         },
-                        composeData: {
-                            messages: generatedMessages,
-                            approvedCount: 0
-                        },
                         stats: {
                             ...state.currentRun.stats,
-                            qualifiedJobs: newQualifiedJobs.length,
-                            totalMessages: generatedMessages.length
+                            qualifiedJobs: newQualifiedJobs.length
                         },
                         updatedAt: new Date().toISOString()
                     }

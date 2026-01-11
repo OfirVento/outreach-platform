@@ -1,6 +1,6 @@
-// Gemini API utility for AI-powered qualification and message generation
+// Gemini API utility for AI-powered qualification
 
-import type { JobPost, GeneratedMessage, Contact } from '../types';
+import type { JobPost } from '../types';
 
 export interface QualificationResult {
     jobId: string;
@@ -13,10 +13,6 @@ export interface QualificationResult {
         detectedFrom: 'description' | 'title' | 'location' | 'none';
         techStack: string[];
     };
-    message: {
-        subject: string | null;
-        body: string | null;
-    } | null;
 }
 
 export async function qualifyJobsWithGemini(
@@ -28,9 +24,6 @@ export async function qualifyJobsWithGemini(
         posterRequired: 'required' | 'any';
         companyName: string;
         companyDescription: string;
-        senderName: string;
-        senderTitle: string;
-        toneOfVoice: 'casual' | 'professional' | 'consultative';
     }
 ): Promise<QualificationResult[]> {
     // Use gemini-2.0-flash which is the currently available model
@@ -43,12 +36,12 @@ export async function qualifyJobsWithGemini(
         : jobs;
 
     // Jobs filtered out due to no poster
-    const noPosterfilteredJobs = jobs.filter(job =>
+    const noPosterFilteredJobs = jobs.filter(job =>
         criteria.posterRequired === 'required' && !(job.poster?.name || job.poster?.linkedInUrl)
     );
 
     // Create fallback results for filtered jobs
-    const filteredResults: QualificationResult[] = noPosterfilteredJobs.map(job => ({
+    const filteredResults: QualificationResult[] = noPosterFilteredJobs.map(job => ({
         jobId: job.id,
         qualified: false,
         confidence: 100,
@@ -58,16 +51,15 @@ export async function qualifyJobsWithGemini(
             workLocation: 'unknown' as const,
             detectedFrom: 'none' as const,
             techStack: job.techStack || []
-        },
-        message: null
+        }
     }));
 
     if (jobsToAnalyze.length === 0) {
         return filteredResults;
     }
 
-    // Process in batches of 10 to avoid token limits
-    const batchSize = 10;
+    // Process in batches of 15 to avoid token limits (smaller batches = faster)
+    const batchSize = 15;
     const aiResults: QualificationResult[] = [];
 
     for (let i = 0; i < jobsToAnalyze.length; i += batchSize) {
@@ -88,9 +80,6 @@ async function qualifyBatch(
         posterRequired: 'required' | 'any';
         companyName: string;
         companyDescription: string;
-        senderName: string;
-        senderTitle: string;
-        toneOfVoice: 'casual' | 'professional' | 'consultative';
     }
 ): Promise<QualificationResult[]> {
     const jobsData = jobs.map(job => ({
@@ -98,8 +87,7 @@ async function qualifyBatch(
         title: job.title,
         company: job.company,
         location: job.location,
-        description: job.description?.substring(0, 2000),
-        posterName: job.poster?.name || null,
+        description: job.description?.substring(0, 1500), // Limit for faster processing
         techStack: job.techStack
     }));
 
@@ -111,25 +99,13 @@ async function qualifyBatch(
                 ? 'All locations qualify including on-site.'
                 : 'Any location is fine, all qualify on location.';
 
-    const toneInstructions = criteria.toneOfVoice === 'casual'
-        ? 'friendly, conversational, use contractions, be warm and personable'
-        : criteria.toneOfVoice === 'professional'
-            ? 'formal but warm, clear value proposition, polished language'
-            : 'consultative, ask insightful questions, demonstrate expertise';
-
-    const prompt = `You are an expert lead qualification and outreach AI for ${criteria.companyName}.
-
-=== ABOUT ${criteria.companyName.toUpperCase()} ===
-What We Do: ${criteria.companyDescription || 'We provide tech talent solutions'}
-Our Tech Stack: ${criteria.techStack.join(', ')}
-Sender: ${criteria.senderName}, ${criteria.senderTitle}
+    const prompt = `You are an expert job qualification AI for ${criteria.companyName}.
 
 === YOUR TASK ===
-For each job:
+Analyze each job and:
 1. Detect if it's Remote, Hybrid, or On-site (check description FIRST)
 2. Extract the tech stack mentioned
 3. Determine if it qualifies based on our criteria
-4. **ONLY generate outreach messages for QUALIFIED jobs** (jobs that meet ALL criteria)
 
 === HOW TO DETECT WORK LOCATION ===
 Search in this ORDER (priority):
@@ -143,54 +119,34 @@ Search in this ORDER (priority):
 3. LOCATION (SECONDARY): "Remote", "Hybrid", or city-only = onsite
 
 Rules:
-- "Remote" clearly stated (not just "remote work options") → workLocation: "remote", isRemote: true
+- "Remote" clearly stated → workLocation: "remote", isRemote: true
 - "Hybrid" anywhere → workLocation: "hybrid", isRemote: false
 - Only city/country with no remote/hybrid → workLocation: "onsite", isRemote: false
 
 === QUALIFICATION CRITERIA ===
-${criteria.workLocation === 'remote' ? `
-⚠️ IMPORTANT: Only REMOTE jobs qualify! 
-- If workLocation is "hybrid" or "onsite" → qualified: false, message: null
-- Do NOT generate messages for non-remote jobs
-` : ''}
+${criteria.workLocation === 'remote' ? '⚠️ ONLY REMOTE jobs qualify! Hybrid/on-site → qualified: false' : ''}
 Work Location: ${workLocationInstruction}
-Tech Match: Should mention at least one of our technologies: ${criteria.techStack.join(', ')}
-
-A job qualifies ONLY if it meets ALL criteria above. If it fails ANY criteria, set qualified: false and message: null.
+Tech Match: Should mention at least one of: ${criteria.techStack.join(', ')}
 
 === JOBS TO ANALYZE ===
 ${JSON.stringify(jobsData, null, 2)}
 
 === RESPONSE FORMAT ===
-Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
+Return ONLY a valid JSON array (no markdown, no code blocks):
 [
   {
     "jobId": "string",
     "qualified": boolean,
     "confidence": number (0-100),
-    "reason": "Brief explanation including work location found",
+    "reason": "Brief: [Remote/Hybrid/Onsite detected from X] + tech match status",
     "extractedData": {
       "isRemote": boolean,
       "workLocation": "remote" | "hybrid" | "onsite" | "unknown",
       "detectedFrom": "description" | "title" | "location" | "none",
-      "techStack": ["array of detected technologies from our list"]
-    },
-    "message": {
-      "subject": "Subject line ONLY if qualified, otherwise null",
-      "body": "Message body ONLY if qualified, otherwise null"
+      "techStack": ["detected technologies from our list"]
     }
   }
-]
-
-=== MESSAGE GUIDELINES (for QUALIFIED jobs ONLY) ===
-⚠️ Generate messages ONLY for jobs where qualified: true
-- Address by first name if posterName exists
-- Reference their specific role at their company
-- Mention 2-3 matching technologies from their job
-- Tone: ${toneInstructions}
-- Sign as: ${criteria.senderName}, ${criteria.senderTitle} at ${criteria.companyName}
-- Subject: max 50 chars, compelling and specific
-- Body: max 120 words, focused and actionable`;
+]`;
 
     try {
         const response = await fetch(endpoint, {
@@ -199,8 +155,8 @@ Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: 0.3,
-                    maxOutputTokens: 8192,
+                    temperature: 0.2,
+                    maxOutputTokens: 4096,
                 }
             })
         });
@@ -241,8 +197,7 @@ Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
                 workLocation: 'unknown' as const,
                 detectedFrom: 'none' as const,
                 techStack: job.techStack || []
-            },
-            message: null
+            }
         }));
     }
 }
