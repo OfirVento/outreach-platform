@@ -40,6 +40,23 @@ export default function QualifyStep() {
         !disqualifiedJobs.some(dj => dj.id === j.id)
     );
 
+    // Sort jobs: Remote first, then Hybrid, then On-site, then unknown
+    const sortedJobs = [...jobs].sort((a, b) => {
+        const locationOrder = { remote: 0, hybrid: 1, onsite: 2, unknown: 3 };
+        const reasonA = reasons[a.id] || '';
+        const reasonB = reasons[b.id] || '';
+
+        // Extract work location from reason or from isRemote flag
+        const getLocationPriority = (job: typeof a, reason: string): number => {
+            if (reason.includes('remote (from') || job.isRemote) return locationOrder.remote;
+            if (reason.includes('hybrid (from')) return locationOrder.hybrid;
+            if (reason.includes('onsite (from')) return locationOrder.onsite;
+            return locationOrder.unknown;
+        };
+
+        return getLocationPriority(a, reasonA) - getLocationPriority(b, reasonB);
+    });
+
     // Get configured tech stack
     const configuredTechStack = Object.values(businessContext.techStack).flat();
 
@@ -102,6 +119,20 @@ export default function QualifyStep() {
 
                 newReasons[result.jobId] = `[${result.confidence}%] ${result.reason} | Location: ${locationInfo}${hasPoster ? ` | Poster: ${job.poster?.name} ✓` : ''}`;
             });
+
+            // Verify all jobs were processed - add any missing ones
+            const processedIds = new Set(results.map(r => r.jobId));
+            const missingJobs = jobs.filter(j => !processedIds.has(j.id));
+            if (missingJobs.length > 0) {
+                console.warn(`AI did not process ${missingJobs.length} jobs, adding as disqualified`);
+                missingJobs.forEach(job => {
+                    updatedJobs.push(job);
+                    newDisqualifiedJobs.push(job);
+                    newReasons[job.id] = '[0%] Job not processed by AI | Location: unknown';
+                });
+            }
+
+            console.log(`Total jobs: ${jobs.length}, Qualified: ${newQualifiedJobs.length}, Disqualified: ${newDisqualifiedJobs.length}`);
 
             // Update the store with AI-qualified results (no messages - those are generated in Compose)
             useNewWorkflowStore.setState((state) => {
@@ -350,7 +381,7 @@ export default function QualifyStep() {
                 </h2>
 
                 <div className="space-y-3">
-                    {jobs.map((job) => {
+                    {sortedJobs.map((job) => {
                         const status = getJobStatus(job.id);
                         const techMatch = getTechMatch(job);
                         const isExpanded = expandedJobId === job.id;
