@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useNewWorkflowStore } from '../../../store/newWorkflowStore';
 import { useSettingsStore } from '../../../store/settingsStore';
+import { qualifyJobsWithGemini, type QualificationResult } from '../../../lib/gemini';
 import type { JobPost } from '../../../types';
 import {
     Filter,
@@ -16,14 +17,18 @@ import {
     Users,
     AlertCircle,
     CheckCircle,
-    XCircle
+    XCircle,
+    Bot,
+    Loader2
 } from 'lucide-react';
 
 export default function QualifyStep() {
-    const { currentRun, qualifyJob, qualifyAllByTechStack, updateStepStatus, goToNextStep } = useNewWorkflowStore();
-    const { businessContext } = useSettingsStore();
+    const { currentRun, qualifyJob, updateStepStatus, goToNextStep, addJobs } = useNewWorkflowStore();
+    const { businessContext, integrations } = useSettingsStore();
     const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
-    const [isAutoQualifying, setIsAutoQualifying] = useState(false);
+    const [isAIQualifying, setIsAIQualifying] = useState(false);
+    const [aiProgress, setAiProgress] = useState<{ current: number; total: number } | null>(null);
+    const [aiError, setAiError] = useState<string | null>(null);
 
     const jobs = currentRun?.sourceData.jobs || [];
     const qualifiedJobs = currentRun?.qualifyData.qualifiedJobs || [];
@@ -38,19 +43,108 @@ export default function QualifyStep() {
     // Get configured tech stack
     const configuredTechStack = Object.values(businessContext.techStack).flat();
 
-    const handleAutoQualify = async () => {
-        setIsAutoQualifying(true);
+    const handleAIQualify = async () => {
+        const apiKey = integrations.gemini.apiKey;
 
-        // Simulate AI processing delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (!apiKey) {
+            setAiError('Please configure your Gemini API key in Settings');
+            return;
+        }
 
-        qualifyAllByTechStack(
-            configuredTechStack,
-            businessContext.qualification.workLocation,
-            businessContext.qualification.posterRequired || 'any'
-        );
-        updateStepStatus('qualify', 'completed');
-        setIsAutoQualifying(false);
+        setIsAIQualifying(true);
+        setAiError(null);
+        setAiProgress({ current: 0, total: jobs.length });
+
+        try {
+            // Call Gemini API to qualify jobs
+            const results = await qualifyJobsWithGemini(jobs, apiKey, {
+                techStack: configuredTechStack,
+                workLocation: businessContext.qualification.workLocation,
+                posterRequired: businessContext.qualification.posterRequired || 'any',
+                companyName: businessContext.companyName,
+                companyDescription: businessContext.whatWeDo
+            });
+
+            // Process results and update the store
+            const newQualifiedJobs: JobPost[] = [];
+            const newDisqualifiedJobs: JobPost[] = [];
+            const newReasons: Record<string, string> = {};
+            const updatedJobs: JobPost[] = [];
+
+            results.forEach((result, index) => {
+                setAiProgress({ current: index + 1, total: jobs.length });
+
+                const job = jobs.find(j => j.id === result.jobId);
+                if (!job) return;
+
+                // Update job with extracted data from AI
+                const updatedJob: JobPost = {
+                    ...job,
+                    isRemote: result.extractedData.isRemote,
+                    techStack: result.extractedData.techStack.length > 0
+                        ? result.extractedData.techStack
+                        : job.techStack,
+                    poster: result.extractedData.hasPoster ? {
+                        name: result.extractedData.posterName || job.poster?.name || '',
+                        title: result.extractedData.posterTitle || job.poster?.title || 'Recruiter',
+                        linkedInUrl: result.extractedData.posterLinkedIn || job.poster?.linkedInUrl || ''
+                    } : job.poster,
+                    seniorityLevel: (result.extractedData.seniorityLevel as JobPost['seniorityLevel']) || job.seniorityLevel,
+                    companySize: result.extractedData.companySize || job.companySize
+                };
+
+                updatedJobs.push(updatedJob);
+
+                if (result.qualified) {
+                    newQualifiedJobs.push(updatedJob);
+                } else {
+                    newDisqualifiedJobs.push(updatedJob);
+                }
+
+                // Format the reason with confidence
+                const locationTag = result.extractedData.workLocation !== 'unknown'
+                    ? `${result.extractedData.workLocation.charAt(0).toUpperCase() + result.extractedData.workLocation.slice(1)} ✓`
+                    : '';
+                const posterTag = result.extractedData.hasPoster
+                    ? `Poster: ${result.extractedData.posterName} ✓`
+                    : '';
+
+                newReasons[result.jobId] = `[${result.confidence}%] ${result.reason}${locationTag ? ` (${locationTag})` : ''}${posterTag ? ` (${posterTag})` : ''}`;
+            });
+
+            // Update the store with AI-qualified results
+            useNewWorkflowStore.setState((state) => {
+                if (!state.currentRun) return state;
+                return {
+                    currentRun: {
+                        ...state.currentRun,
+                        sourceData: {
+                            jobs: updatedJobs.length > 0 ? updatedJobs : state.currentRun.sourceData.jobs,
+                            totalImported: state.currentRun.sourceData.totalImported
+                        },
+                        qualifyData: {
+                            qualifiedJobs: newQualifiedJobs,
+                            disqualifiedJobs: newDisqualifiedJobs,
+                            qualificationReasons: newReasons
+                        },
+                        stats: {
+                            ...state.currentRun.stats,
+                            qualifiedJobs: newQualifiedJobs.length
+                        },
+                        updatedAt: new Date().toISOString()
+                    }
+                };
+            });
+
+            updateStepStatus('qualify', 'completed');
+
+        } catch (error) {
+            console.error('AI Qualification error:', error);
+            setAiError(error instanceof Error ? error.message : 'AI qualification failed');
+        } finally {
+            setIsAIQualifying(false);
+            setAiProgress(null);
+        }
     };
 
     const handleQualify = (jobId: string, qualified: boolean, reason?: string) => {
@@ -91,20 +185,56 @@ export default function QualifyStep() {
                         Qualify Leads by Tech Stack
                     </h2>
 
-                    {configuredTechStack.length > 0 && (
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={handleAutoQualify}
-                            disabled={isAutoQualifying || jobs.length === 0}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isAutoQualifying
-                                ? 'bg-purple-100 text-purple-600'
-                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                            onClick={handleAIQualify}
+                            disabled={isAIQualifying || jobs.length === 0}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isAIQualifying
+                                ? 'bg-gradient-to-r from-purple-100 to-blue-100 text-purple-600'
+                                : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
                                 }`}
                         >
-                            <Sparkles className={`w-4 h-4 ${isAutoQualifying ? 'animate-pulse' : ''}`} />
-                            {isAutoQualifying ? 'Qualifying...' : 'Auto-Qualify All'}
+                            {isAIQualifying ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    AI Qualifying... {aiProgress && `(${aiProgress.current}/${aiProgress.total})`}
+                                </>
+                            ) : (
+                                <>
+                                    <Bot className="w-4 h-4" />
+                                    AI Qualify
+                                </>
+                            )}
                         </button>
-                    )}
+                    </div>
                 </div>
+
+                {/* AI Error Display */}
+                {aiError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                        <div>
+                            <p className="text-sm text-red-700 font-medium">{aiError}</p>
+                            <a href="/settings" className="text-sm text-red-600 underline">Go to Settings</a>
+                        </div>
+                    </div>
+                )}
+
+                {/* AI Progress Bar */}
+                {isAIQualifying && aiProgress && (
+                    <div className="mb-4">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                            <span>Analyzing jobs with AI...</span>
+                            <span>{Math.round((aiProgress.current / aiProgress.total) * 100)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                                className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${(aiProgress.current / aiProgress.total) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {/* Tech Stack Being Matched */}
                 {configuredTechStack.length > 0 ? (
