@@ -129,7 +129,7 @@ function BusinessContextTab() {
                             value={businessContext.companyName}
                             onChange={(e) => updateBusinessContext({ companyName: e.target.value })}
                             placeholder="Your Agency Name"
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                         />
                     </div>
 
@@ -140,7 +140,7 @@ function BusinessContextTab() {
                             onChange={(e) => updateBusinessContext({ whatWeDo: e.target.value })}
                             rows={4}
                             placeholder="Describe your agency and value proposition..."
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900"
                         />
                         <p className="text-xs text-gray-500 mt-1">This context is injected into AI message generation</p>
                     </div>
@@ -251,7 +251,7 @@ function BusinessContextTab() {
                         value={newValueProp}
                         onChange={(e) => setNewValueProp(e.target.value)}
                         placeholder="Add a value proposition..."
-                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && newValueProp.trim()) {
                                 addValueProp(newValueProp.trim());
@@ -301,7 +301,7 @@ function BusinessContextTab() {
                         value={newCaseStudy}
                         onChange={(e) => setNewCaseStudy(e.target.value)}
                         placeholder="e.g., Helped [Client] ship their MVP in 6 weeks..."
-                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && newCaseStudy.trim()) {
                                 addCaseStudy(newCaseStudy.trim());
@@ -359,7 +359,7 @@ function BusinessContextTab() {
                             onChange={(e) => updateBusinessContext({
                                 qualification: { ...businessContext.qualification, cooldownDays: parseInt(e.target.value) || 90 }
                             })}
-                            className="w-32 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-32 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                         />
                         <p className="text-xs text-gray-500 mt-1">Don't re-contact same person within this period</p>
                     </div>
@@ -428,7 +428,7 @@ function IntegrationsTab() {
                                 placeholder="Actor ID"
                                 value={integrations.apify.actorId}
                                 onChange={(e) => updateIntegrations({ apify: { ...integrations.apify, actorId: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900"
                             />
                         </div>
                     </IntegrationCard>
@@ -537,7 +537,7 @@ function IntegrationsTab() {
                             placeholder="Spreadsheet ID"
                             value={integrations.googleSheets.spreadsheetId}
                             onChange={(e) => updateIntegrations({ googleSheets: { ...integrations.googleSheets, spreadsheetId: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900"
                         />
                     </IntegrationCard>
                 </div>
@@ -569,7 +569,7 @@ function SafetyTab() {
                             onChange={(e) => updateSafety({
                                 dailyLimits: { ...safety.dailyLimits, linkedinConnections: parseInt(e.target.value) || 0 }
                             })}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-900"
                         />
                         <p className="text-xs text-gray-500 mt-1">Recommended: 20-25</p>
                     </div>
@@ -615,7 +615,7 @@ function SafetyTab() {
                                 onChange={(e) => updateSafety({
                                     sequenceTiming: { ...safety.sequenceTiming, firstFollowupDays: parseInt(e.target.value) || 3 }
                                 })}
-                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg"
+                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg text-gray-900"
                             />
                             <span className="text-sm text-gray-500">days</span>
                         </div>
