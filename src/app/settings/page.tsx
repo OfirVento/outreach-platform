@@ -129,7 +129,7 @@ function BusinessContextTab() {
                             value={businessContext.companyName}
                             onChange={(e) => updateBusinessContext({ companyName: e.target.value })}
                             placeholder="Your Agency Name"
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                         />
                     </div>
 
@@ -140,7 +140,7 @@ function BusinessContextTab() {
                             onChange={(e) => updateBusinessContext({ whatWeDo: e.target.value })}
                             rows={4}
                             placeholder="Describe your agency and value proposition..."
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black"
                         />
                         <p className="text-xs text-gray-500 mt-1">This context is injected into AI message generation</p>
                     </div>
@@ -153,7 +153,7 @@ function BusinessContextTab() {
                                 value={businessContext.senderName}
                                 onChange={(e) => updateBusinessContext({ senderName: e.target.value })}
                                 placeholder="John Smith"
-                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                             />
                         </div>
                         <div>
@@ -163,7 +163,7 @@ function BusinessContextTab() {
                                 value={businessContext.senderTitle}
                                 onChange={(e) => updateBusinessContext({ senderTitle: e.target.value })}
                                 placeholder="Business Development"
-                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                             />
                         </div>
                     </div>
@@ -251,7 +251,7 @@ function BusinessContextTab() {
                         value={newValueProp}
                         onChange={(e) => setNewValueProp(e.target.value)}
                         placeholder="Add a value proposition..."
-                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && newValueProp.trim()) {
                                 addValueProp(newValueProp.trim());
@@ -301,7 +301,7 @@ function BusinessContextTab() {
                         value={newCaseStudy}
                         onChange={(e) => setNewCaseStudy(e.target.value)}
                         placeholder="e.g., Helped [Client] ship their MVP in 6 weeks..."
-                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && newCaseStudy.trim()) {
                                 addCaseStudy(newCaseStudy.trim());
@@ -337,7 +337,7 @@ function BusinessContextTab() {
                             onChange={(e) => updateBusinessContext({
                                 qualification: { ...businessContext.qualification, minCompanySize: parseInt(e.target.value) || 0 }
                             })}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                         />
                     </div>
                     <div>
@@ -348,7 +348,7 @@ function BusinessContextTab() {
                             onChange={(e) => updateBusinessContext({
                                 qualification: { ...businessContext.qualification, maxCompanySize: parseInt(e.target.value) || 0 }
                             })}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                         />
                     </div>
                     <div className="col-span-2">
@@ -359,7 +359,7 @@ function BusinessContextTab() {
                             onChange={(e) => updateBusinessContext({
                                 qualification: { ...businessContext.qualification, cooldownDays: parseInt(e.target.value) || 90 }
                             })}
-                            className="w-32 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                            className="w-32 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                         />
                         <p className="text-xs text-gray-500 mt-1">Don't re-contact same person within this period</p>
                     </div>
@@ -421,14 +421,14 @@ function IntegrationsTab() {
                                 placeholder="API Key"
                                 value={integrations.apify.apiKey}
                                 onChange={(e) => updateIntegrations({ apify: { ...integrations.apify, apiKey: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                             />
                             <input
                                 type="text"
                                 placeholder="Actor ID"
                                 value={integrations.apify.actorId}
                                 onChange={(e) => updateIntegrations({ apify: { ...integrations.apify, actorId: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                             />
                         </div>
                     </IntegrationCard>
@@ -450,7 +450,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.clay.apiKey}
                             onChange={(e) => updateIntegrations({ clay: { ...integrations.clay, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                         />
                     </IntegrationCard>
 
@@ -465,7 +465,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.apollo.apiKey}
                             onChange={(e) => updateIntegrations({ apollo: { ...integrations.apollo, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                         />
                     </IntegrationCard>
 
@@ -480,7 +480,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.hunter.apiKey}
                             onChange={(e) => updateIntegrations({ hunter: { ...integrations.hunter, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                         />
                     </IntegrationCard>
                 </div>
@@ -502,7 +502,7 @@ function IntegrationsTab() {
                                 placeholder="API Key"
                                 value={integrations.gemini.apiKey}
                                 onChange={(e) => updateIntegrations({ gemini: { ...integrations.gemini, apiKey: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                             />
                             <div className="flex flex-col gap-1">
                                 <label className="text-xs text-gray-500 font-medium">Model</label>
@@ -531,7 +531,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.claude.apiKey}
                             onChange={(e) => updateIntegrations({ claude: { ...integrations.claude, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                         />
                     </IntegrationCard>
                 </div>
@@ -552,7 +552,7 @@ function IntegrationsTab() {
                             placeholder="Spreadsheet ID"
                             value={integrations.googleSheets.spreadsheetId}
                             onChange={(e) => updateIntegrations({ googleSheets: { ...integrations.googleSheets, spreadsheetId: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                         />
                     </IntegrationCard>
                 </div>
@@ -584,7 +584,7 @@ function SafetyTab() {
                             onChange={(e) => updateSafety({
                                 dailyLimits: { ...safety.dailyLimits, linkedinConnections: parseInt(e.target.value) || 0 }
                             })}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-900"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg text-black"
                         />
                         <p className="text-xs text-gray-500 mt-1">Recommended: 20-25</p>
                     </div>
@@ -596,7 +596,7 @@ function SafetyTab() {
                             onChange={(e) => updateSafety({
                                 dailyLimits: { ...safety.dailyLimits, linkedinMessages: parseInt(e.target.value) || 0 }
                             })}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg text-black"
                         />
                         <p className="text-xs text-gray-500 mt-1">Recommended: 50</p>
                     </div>
@@ -608,7 +608,7 @@ function SafetyTab() {
                             onChange={(e) => updateSafety({
                                 dailyLimits: { ...safety.dailyLimits, emails: parseInt(e.target.value) || 0 }
                             })}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg text-black"
                         />
                         <p className="text-xs text-gray-500 mt-1">Recommended: 100</p>
                     </div>
@@ -630,7 +630,7 @@ function SafetyTab() {
                                 onChange={(e) => updateSafety({
                                     sequenceTiming: { ...safety.sequenceTiming, firstFollowupDays: parseInt(e.target.value) || 3 }
                                 })}
-                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg text-gray-900"
+                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg text-black"
                             />
                             <span className="text-sm text-gray-500">days</span>
                         </div>
@@ -644,7 +644,7 @@ function SafetyTab() {
                                 onChange={(e) => updateSafety({
                                     sequenceTiming: { ...safety.sequenceTiming, secondFollowupDays: parseInt(e.target.value) || 7 }
                                 })}
-                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg"
+                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg text-black"
                             />
                             <span className="text-sm text-gray-500">days</span>
                         </div>
@@ -658,7 +658,7 @@ function SafetyTab() {
                                 onChange={(e) => updateSafety({
                                     sequenceTiming: { ...safety.sequenceTiming, thirdFollowupDays: parseInt(e.target.value) || 14 }
                                 })}
-                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg"
+                                className="w-20 px-4 py-2 border border-gray-200 rounded-lg text-black"
                             />
                             <span className="text-sm text-gray-500">days</span>
                         </div>
