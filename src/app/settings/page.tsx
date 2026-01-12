@@ -92,6 +92,7 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
+                        <p className="text-xs text-gray-400 text-center mt-4">v1.2 (Light Mode Fix)</p>
                     </nav>
 
                     {/* Main Content */}
