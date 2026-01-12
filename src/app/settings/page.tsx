@@ -93,7 +93,7 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-gray-400 text-center mt-4">v1.5 (OpenAI + Fixes)</p>
+                        <p className="text-xs text-gray-400 text-center mt-4">v1.6 (Styles + Fixes)</p>
                     </nav>
 
                     {/* Main Content */}
@@ -423,14 +423,14 @@ function IntegrationsTab() {
                                 placeholder="API Key"
                                 value={integrations.apify.apiKey}
                                 onChange={(e) => updateIntegrations({ apify: { ...integrations.apify, apiKey: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             />
                             <input
                                 type="text"
                                 placeholder="Actor ID"
                                 value={integrations.apify.actorId}
                                 onChange={(e) => updateIntegrations({ apify: { ...integrations.apify, actorId: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             />
                         </div>
                     </IntegrationCard>
@@ -452,7 +452,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.clay.apiKey}
                             onChange={(e) => updateIntegrations({ clay: { ...integrations.clay, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         />
                     </IntegrationCard>
 
@@ -467,7 +467,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.apollo.apiKey}
                             onChange={(e) => updateIntegrations({ apollo: { ...integrations.apollo, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         />
                     </IntegrationCard>
 
@@ -482,7 +482,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.hunter.apiKey}
                             onChange={(e) => updateIntegrations({ hunter: { ...integrations.hunter, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         />
                     </IntegrationCard>
                 </div>
@@ -504,7 +504,7 @@ function IntegrationsTab() {
                                 placeholder="API Key"
                                 value={integrations.openai?.apiKey || ''}
                                 onChange={(e) => updateIntegrations({ openai: { ...integrations.openai, apiKey: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             />
                             <div className="flex flex-col gap-1">
                                 <label className="text-xs text-gray-500 font-medium">Model</label>
@@ -533,7 +533,7 @@ function IntegrationsTab() {
                                 placeholder="API Key"
                                 value={integrations.gemini.apiKey}
                                 onChange={(e) => updateIntegrations({ gemini: { ...integrations.gemini, apiKey: e.target.value } })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             />
                             <div className="flex flex-col gap-1">
                                 <label className="text-xs text-gray-500 font-medium">Model</label>
@@ -562,7 +562,7 @@ function IntegrationsTab() {
                             placeholder="API Key"
                             value={integrations.claude.apiKey}
                             onChange={(e) => updateIntegrations({ claude: { ...integrations.claude, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         />
                     </IntegrationCard>
                 </div>
@@ -583,7 +583,7 @@ function IntegrationsTab() {
                             placeholder="Spreadsheet ID"
                             value={integrations.googleSheets.spreadsheetId}
                             onChange={(e) => updateIntegrations({ googleSheets: { ...integrations.googleSheets, spreadsheetId: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         />
                         <input
                             type="text"
