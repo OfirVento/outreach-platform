@@ -255,38 +255,62 @@ export default function ExportStep() {
             </div>
 
             {/* Preview Table */}
-            {rows.length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                        <h2 className="text-lg font-bold text-gray-900">
-                            Preview ({rows.length} rows)
-                        </h2>
-                        <button
-                            onClick={handleCopyAllMessages}
-                            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-                        >
-                            <Copy className="w-4 h-4" />
-                            Copy All Messages
-                        </button>
-                    </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b border-gray-200">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-lg font-bold text-gray-900">
+                        Preview ({rows.length} rows)
+                    </h2>
+                    <button
+                        onClick={handleCopyAllMessages}
+                        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                    >
+                        <Copy className="w-4 h-4" />
+                        Copy All Messages
+                    </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Priority</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Step</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contact</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Company</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Links</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Job</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Send Date</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {rows.length === 0 ? (
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Priority</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Step</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contact</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Company</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Links</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Job</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Send Date</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                                    <td colSpan={9} className="px-4 py-16 text-center text-gray-500">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <FileSpreadsheet className="w-12 h-12 text-gray-200 mb-4" />
+                                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Populate</h3>
+                                            <p className="max-w-md mx-auto mb-6 text-gray-500">
+                                                Click Generate Table to fill this preview with your campaign data.
+                                            </p>
+                                            <button
+                                                onClick={handleGenerateExport}
+                                                disabled={isExporting}
+                                                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${isExporting
+                                                    ? 'bg-blue-100 text-blue-600'
+                                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    }`}
+                                            >
+                                                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Table className="w-4 h-4" />}
+                                                {isExporting ? 'Generating...' : 'Generate Table'}
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {rows.slice(0, 20).map((row, index) => (
+                            ) : (
+                                rows.slice(0, 20).map((row, index) => (
                                     <tr key={index} className="hover:bg-gray-50">
                                         <td className="px-4 py-3">
                                             <span className="text-lg">{row.status.split(' ')[0]}</span>
@@ -359,18 +383,19 @@ export default function ExportStep() {
                                             </button>
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {rows.length > 20 && (
-                        <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 text-center text-sm text-gray-500">
-                            Showing 20 of {rows.length} rows. Download CSV to see all.
-                        </div>
-                    )}
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+
+                {rows.length > 20 && (
+                    <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 text-center text-sm text-gray-500">
+                        Showing 20 of {rows.length} rows. Download CSV to see all.
+                    </div>
+                )}
+            </div>
+
 
             {/* Message Preview */}
             {rows.length > 0 && (
@@ -389,23 +414,7 @@ export default function ExportStep() {
                 </div>
             )}
 
-            {/* Empty State */}
-            {rows.length === 0 && (
-                <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                    <FileSpreadsheet className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Export</h3>
-                    <p className="text-gray-500 max-w-md mx-auto mb-6">
-                        Generate your SDR action sheet with all contacts, messages, and LinkedIn URLs ready for outreach.
-                    </p>
-                    <button
-                        onClick={handleGenerateExport}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
-                    >
-                        <Table className="w-5 h-5" />
-                        Generate Export
-                    </button>
-                </div>
-            )}
+
         </div>
     );
 }

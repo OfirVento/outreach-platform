@@ -92,7 +92,7 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-gray-400 text-center mt-4">v1.3 (Sheets Export)</p>
+                        <p className="text-xs text-gray-400 text-center mt-4">v1.4 (Table Preview)</p>
                     </nav>
 
                     {/* Main Content */}
