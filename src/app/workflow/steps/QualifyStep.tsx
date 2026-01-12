@@ -74,7 +74,7 @@ export default function QualifyStep() {
 
         try {
             // Call Gemini API to qualify jobs (work location + tech match only)
-            const results = await qualifyJobsWithGemini(jobs, apiKey, {
+            const results = await qualifyJobsWithGemini(jobs, apiKey, integrations.gemini.model || 'gemini-2.5-flash', {
                 techStack: configuredTechStack,
                 workLocation: businessContext.qualification.workLocation,
                 posterRequired: businessContext.qualification.posterRequired || 'any',

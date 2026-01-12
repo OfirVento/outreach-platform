@@ -496,13 +496,28 @@ function IntegrationsTab() {
                         enabled={integrations.gemini.enabled}
                         onToggle={() => updateIntegrations({ gemini: { ...integrations.gemini, enabled: !integrations.gemini.enabled } })}
                     >
-                        <input
-                            type="password"
-                            placeholder="API Key"
-                            value={integrations.gemini.apiKey}
-                            onChange={(e) => updateIntegrations({ gemini: { ...integrations.gemini, apiKey: e.target.value } })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                        />
+                        <div className="space-y-3">
+                            <input
+                                type="password"
+                                placeholder="API Key"
+                                value={integrations.gemini.apiKey}
+                                onChange={(e) => updateIntegrations({ gemini: { ...integrations.gemini, apiKey: e.target.value } })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900"
+                            />
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-gray-500 font-medium">Model</label>
+                                <select
+                                    value={integrations.gemini.model || 'gemini-2.5-flash'}
+                                    onChange={(e) => updateIntegrations({ gemini: { ...integrations.gemini, model: e.target.value } })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-white"
+                                >
+                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
+                                    <option value="gemini-2.5-flash-preview-09-2025">Gemini 2.5 Flash Preview</option>
+                                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                    <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                                </select>
+                            </div>
+                        </div>
                     </IntegrationCard>
 
                     <IntegrationCard

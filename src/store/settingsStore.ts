@@ -157,7 +157,7 @@ const defaultIntegrations: IntegrationConfig = {
     clay: { enabled: true, apiKey: '' },
     apollo: { enabled: false, apiKey: '' },
     hunter: { enabled: false, apiKey: '' },
-    gemini: { enabled: true, apiKey: '', model: 'gemini-1.5-pro' },
+    gemini: { enabled: true, apiKey: '', model: 'gemini-2.5-flash' },
     claude: { enabled: false, apiKey: '', model: 'claude-3-sonnet' },
     googleSheets: { enabled: false, spreadsheetId: '' }
 };

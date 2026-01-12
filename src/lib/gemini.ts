@@ -19,6 +19,7 @@ export interface QualificationResult {
 export async function qualifyJobsWithGemini(
     jobs: JobPost[],
     apiKey: string,
+    model: string = 'gemini-2.5-flash',
     criteria: {
         techStack: string[];
         workLocation: 'remote' | 'hybrid' | 'onsite' | 'any';
@@ -27,7 +28,6 @@ export async function qualifyJobsWithGemini(
         companyDescription: string;
     }
 ): Promise<QualificationResult[]> {
-    const model = 'gemini-2.5-flash';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // Pre-filter jobs based on poster requirement (done programmatically)
