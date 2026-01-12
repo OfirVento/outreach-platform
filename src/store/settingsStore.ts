@@ -87,6 +87,7 @@ export interface IntegrationConfig {
     googleSheets: {
         enabled: boolean;
         spreadsheetId: string;
+        clientId?: string;
     };
 }
 
@@ -159,7 +160,7 @@ const defaultIntegrations: IntegrationConfig = {
     hunter: { enabled: false, apiKey: '' },
     gemini: { enabled: true, apiKey: '', model: 'gemini-2.5-flash' },
     claude: { enabled: false, apiKey: '', model: 'claude-3-sonnet' },
-    googleSheets: { enabled: false, spreadsheetId: '' }
+    googleSheets: { enabled: false, spreadsheetId: '', clientId: '' }
 };
 
 const defaultSafety: SafetySettings = {

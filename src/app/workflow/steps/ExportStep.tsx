@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useNewWorkflowStore } from '../../../store/newWorkflowStore';
+import { useSettingsStore } from '../../../store/settingsStore';
+import { initializeGoogleAuth, appendToSheet } from '../../../lib/googleSheets';
 import type { ExportRow } from '../../../types';
 import {
     FileSpreadsheet,
@@ -14,18 +16,23 @@ import {
     Star,
     Clock,
     CheckCircle,
-    Table
+    Table,
+    Loader2
 } from 'lucide-react';
 
 export default function ExportStep() {
     const { currentRun, generateExportRows, markExported, updateStepStatus } = useNewWorkflowStore();
+    const { integrations } = useSettingsStore();
     const [isExporting, setIsExporting] = useState(false);
     const [exportComplete, setExportComplete] = useState(false);
     const [copiedRow, setCopiedRow] = useState<number | null>(null);
+    const [sheetError, setSheetError] = useState<string | null>(null);
 
     const rows = currentRun?.exportData.rows || [];
     const exportedAt = currentRun?.exportData.exportedAt;
-    const spreadsheetUrl = currentRun?.exportData.spreadsheetUrl;
+
+    // Use configured spreadsheet ID if available
+    const spreadsheetId = integrations.googleSheets.enabled ? integrations.googleSheets.spreadsheetId : '';
 
     const handleGenerateExport = async () => {
         setIsExporting(true);
@@ -35,32 +42,16 @@ export default function ExportStep() {
         setIsExporting(false);
     };
 
-    const handleDownloadCSV = () => {
-        if (rows.length === 0) return;
-
-        // CSV headers matching the SDR Action Sheet schema
+    const getFormattedRows = () => {
+        // Headers matching the SDR Action Sheet schema
         const headers = [
-            'Status',
-            'Priority',
-            'Sequence Step',
-            'Channel',
-            'Contact Name',
-            'Contact Title',
-            'Company',
-            'LinkedIn URL',
-            'Email',
-            'Job Title Hiring',
-            'Tech Stack',
-            'Message',
-            'Personalization Notes',
-            'Job Post URL',
-            'Suggested Send Date',
-            'Sent Date',
-            'Response',
-            'Notes'
+            'Status', 'Priority', 'Sequence Step', 'Channel', 'Contact Name', 'Contact Title',
+            'Company', 'LinkedIn URL', 'Email', 'Job Title Hiring', 'Tech Stack',
+            'Message', 'Personalization Notes', 'Job Post URL', 'Suggested Send Date',
+            'Sent Date', 'Response', 'Notes'
         ];
 
-        const csvRows = rows.map(row => [
+        const dataRows = rows.map(row => [
             row.status,
             row.priority,
             row.sequenceStep,
@@ -72,7 +63,7 @@ export default function ExportStep() {
             row.email,
             row.jobTitle,
             row.techStack,
-            `"${row.message.replace(/"/g, '""')}"`, // Escape quotes in message
+            row.message, // No need to escape quotes for API
             row.personalizationNotes,
             row.jobPostUrl,
             row.suggestedSendDate,
@@ -81,12 +72,61 @@ export default function ExportStep() {
             row.notes || ''
         ]);
 
+        return { headers, dataRows };
+    };
+
+    const handleExportToSheets = async () => {
+        if (!integrations.googleSheets.clientId) {
+            setSheetError("Missing Google Client ID. Please configure it in Settings.");
+            return;
+        }
+        if (!spreadsheetId) {
+            setSheetError("Missing Spreadsheet ID. Please configure it in Settings.");
+            return;
+        }
+
+        setIsExporting(true);
+        setSheetError(null);
+
+        try {
+            await initializeGoogleAuth(integrations.googleSheets.clientId);
+            const { headers, dataRows } = getFormattedRows();
+
+            // Append header if empty (logic could be improved but simple append is safe)
+            // For now, we just append rows. User should set up headers once.
+            // Actually, let's append headers only if we think it's fresh? No, safer to just append data.
+            // Or maybe the user WANTS headers every time? Let's stick to data for now to avoid mess.
+
+            await appendToSheet(spreadsheetId, 'Sheet1!A1', dataRows);
+
+            markExported();
+            setExportComplete(true);
+        } catch (err: any) {
+            console.error(err);
+            setSheetError(err.message || "Failed to export to Google Sheets");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleDownloadCSV = () => {
+        if (rows.length === 0) return;
+        const { headers, dataRows } = getFormattedRows();
+
+        // Escape for CSV
+        const csvRows = dataRows.map(row => row.map(cell => {
+            const stringCell = String(cell);
+            if (stringCell.includes(',') || stringCell.includes('"') || stringCell.includes('\n')) {
+                return `"${stringCell.replace(/"/g, '""')}"`;
+            }
+            return stringCell;
+        }));
+
         const csvContent = [
             headers.join(','),
             ...csvRows.map(row => row.join(','))
         ].join('\n');
 
-        // Create and download file
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -127,7 +167,7 @@ export default function ExportStep() {
             <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <FileSpreadsheet className="w-5 h-5 text-red-600" />
+                        <FileSpreadsheet className="w-5 h-5 text-green-600" />
                         Export SDR Action Sheet
                     </h2>
 
@@ -137,28 +177,43 @@ export default function ExportStep() {
                                 onClick={handleGenerateExport}
                                 disabled={isExporting}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isExporting
-                                        ? 'bg-red-100 text-red-600'
-                                        : 'bg-red-600 text-white hover:bg-red-700'
+                                    ? 'bg-blue-100 text-blue-600'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
                                     }`}
                             >
-                                <Table className="w-4 h-4" />
-                                {isExporting ? 'Generating...' : 'Generate Export'}
+                                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Table className="w-4 h-4" />}
+                                {isExporting ? 'Generating...' : 'Generate Table'}
                             </button>
                         )}
                         {rows.length > 0 && (
-                            <button
-                                onClick={handleDownloadCSV}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
-                            >
-                                <Download className="w-4 h-4" />
-                                Download CSV
-                            </button>
+                            <div className="flex gap-2">
+                                {integrations.googleSheets.enabled ? (
+                                    <button
+                                        onClick={handleExportToSheets}
+                                        disabled={isExporting}
+                                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                                        {isExporting ? 'Exporting...' : 'Update Google Sheet'}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleDownloadCSV}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Download CSV
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
 
                 <p className="text-sm text-gray-600 mb-4">
-                    Generate a CSV file formatted for your SDR team. Each row contains everything needed to send a message: contact info, LinkedIn URL, email, pre-written message, and personalization notes.
+                    {integrations.googleSheets.enabled
+                        ? "Export directly to your configured Google Sheet. Ensure you have added the Client ID and Spreadsheet ID in Settings."
+                        : "Generate a CSV file formatted for your SDR team. Each row contains everything needed to send a message."}
                 </p>
 
                 {/* Stats */}
@@ -183,10 +238,18 @@ export default function ExportStep() {
                     </div>
                 )}
 
+                {sheetError && (
+                    <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-lg text-sm">
+                        <span className="font-bold">Error:</span> {sheetError}
+                    </div>
+                )}
+
                 {exportComplete && (
                     <div className="mt-4 flex items-center gap-2 text-green-600 bg-green-50 px-4 py-3 rounded-lg">
                         <CheckCircle className="w-5 h-5" />
-                        CSV downloaded successfully! Open it in Google Sheets for your SDR team.
+                        {integrations.googleSheets.enabled
+                            ? "Google Sheet updated successfully!"
+                            : "CSV downloaded successfully!"}
                     </div>
                 )}
             </div>
@@ -237,8 +300,8 @@ export default function ExportStep() {
                                         </td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 rounded text-xs font-medium ${row.sequenceStep === '1st Touch'
-                                                    ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-gray-100 text-gray-600'
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'bg-gray-100 text-gray-600'
                                                 }`}>
                                                 {row.sequenceStep}
                                             </span>
@@ -287,8 +350,8 @@ export default function ExportStep() {
                                             <button
                                                 onClick={() => handleCopyRow(index)}
                                                 className={`p-1.5 rounded transition-colors ${copiedRow === index
-                                                        ? 'bg-green-100 text-green-600'
-                                                        : 'hover:bg-gray-100 text-gray-500'
+                                                    ? 'bg-green-100 text-green-600'
+                                                    : 'hover:bg-gray-100 text-gray-500'
                                                     }`}
                                                 title="Copy contact info + message"
                                             >

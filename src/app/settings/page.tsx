@@ -92,7 +92,7 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-gray-400 text-center mt-4">v1.2 (Light Mode Fix)</p>
+                        <p className="text-xs text-gray-400 text-center mt-4">v1.3 (Sheets Export)</p>
                     </nav>
 
                     {/* Main Content */}
@@ -555,6 +555,14 @@ function IntegrationsTab() {
                             onChange={(e) => updateIntegrations({ googleSheets: { ...integrations.googleSheets, spreadsheetId: e.target.value } })}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
                         />
+                        <input
+                            type="text"
+                            placeholder="Client ID (OAuth 2.0)"
+                            value={integrations.googleSheets.clientId || ''}
+                            onChange={(e) => updateIntegrations({ googleSheets: { ...integrations.googleSheets, clientId: e.target.value } })}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black mt-3"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Required for writing to Sheets. Create in Google Cloud Console.</p>
                     </IntegrationCard>
                 </div>
             </section>
