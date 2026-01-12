@@ -183,26 +183,26 @@ export const useSettingsStore = create<SettingsState>()(
             integrations: defaultIntegrations,
             safety: defaultSafety,
 
-            updateBusinessContext: (updates) =>
-                set((state) => ({
+            updateBusinessContext: (updates: Partial<BusinessContext>) =>
+                set((state: SettingsState) => ({
                     businessContext: { ...state.businessContext, ...updates }
                 })),
 
-            updateIntegrations: (updates) =>
-                set((state) => ({
+            updateIntegrations: (updates: Partial<IntegrationConfig>) =>
+                set((state: SettingsState) => ({
                     integrations: { ...state.integrations, ...updates }
                 })),
 
-            updateSafety: (updates) =>
-                set((state) => ({
+            updateSafety: (updates: Partial<SafetySettings>) =>
+                set((state: SettingsState) => ({
                     safety: { ...state.safety, ...updates }
                 })),
 
-            toggleTech: (category, tech) =>
-                set((state) => {
+            toggleTech: (category: keyof BusinessContext['techStack'], tech: string) =>
+                set((state: SettingsState) => {
                     const current = state.businessContext.techStack[category];
                     const updated = current.includes(tech)
-                        ? current.filter((t) => t !== tech)
+                        ? current.filter((t: string) => t !== tech)
                         : [...current, tech];
                     return {
                         businessContext: {
@@ -215,35 +215,35 @@ export const useSettingsStore = create<SettingsState>()(
                     };
                 }),
 
-            addValueProp: (prop) =>
-                set((state) => ({
+            addValueProp: (prop: string) =>
+                set((state: SettingsState) => ({
                     businessContext: {
                         ...state.businessContext,
                         valueProps: [...state.businessContext.valueProps, prop]
                     }
                 })),
 
-            removeValueProp: (index) =>
-                set((state) => ({
+            removeValueProp: (index: number) =>
+                set((state: SettingsState) => ({
                     businessContext: {
                         ...state.businessContext,
-                        valueProps: state.businessContext.valueProps.filter((_, i) => i !== index)
+                        valueProps: state.businessContext.valueProps.filter((_: string, i: number) => i !== index)
                     }
                 })),
 
-            addCaseStudy: (study) =>
-                set((state) => ({
+            addCaseStudy: (study: string) =>
+                set((state: SettingsState) => ({
                     businessContext: {
                         ...state.businessContext,
                         caseStudies: [...state.businessContext.caseStudies, study]
                     }
                 })),
 
-            removeCaseStudy: (index) =>
-                set((state) => ({
+            removeCaseStudy: (index: number) =>
+                set((state: SettingsState) => ({
                     businessContext: {
                         ...state.businessContext,
-                        caseStudies: state.businessContext.caseStudies.filter((_, i) => i !== index)
+                        caseStudies: state.businessContext.caseStudies.filter((_: string, i: number) => i !== index)
                     }
                 }))
         }),
