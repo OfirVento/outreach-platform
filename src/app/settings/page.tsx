@@ -21,6 +21,7 @@ import { useSettingsStore, TECH_CATEGORIES } from '../../store/settingsStore';
 type SettingsTab = 'business' | 'integrations' | 'safety';
 
 export default function SettingsPage() {
+    console.log('App Version: v1.5 (OpenAI + Fixes)');
     const [activeTab, setActiveTab] = useState<SettingsTab>('business');
     const [saved, setSaved] = useState(false);
 
