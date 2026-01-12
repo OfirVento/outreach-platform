@@ -82,6 +82,11 @@ export interface IntegrationConfig {
         apiKey: string;
         model: string;
     };
+    openai: {
+        enabled: boolean;
+        apiKey: string;
+        model: string;
+    };
 
     // Export
     googleSheets: {
@@ -160,6 +165,7 @@ const defaultIntegrations: IntegrationConfig = {
     hunter: { enabled: false, apiKey: '' },
     gemini: { enabled: true, apiKey: '', model: 'gemini-2.5-flash' },
     claude: { enabled: false, apiKey: '', model: 'claude-3-sonnet' },
+    openai: { enabled: false, apiKey: '', model: 'gpt-4o' },
     googleSheets: { enabled: false, spreadsheetId: '', clientId: '' }
 };
 
@@ -259,7 +265,8 @@ export const useSettingsStore = create<SettingsState>()(
                     clay: persistedState?.integrations?.clay?.apiKey || '',
                     apollo: persistedState?.integrations?.apollo?.apiKey || '',
                     hunter: persistedState?.integrations?.hunter?.apiKey || '',
-                    claude: persistedState?.integrations?.claude?.apiKey || ''
+                    claude: persistedState?.integrations?.claude?.apiKey || '',
+                    openai: persistedState?.integrations?.openai?.apiKey || ''
                 };
 
                 // If coming from v1 or no version, reset to new defaults but keep API keys
@@ -281,7 +288,9 @@ export const useSettingsStore = create<SettingsState>()(
                             clay: { ...defaultIntegrations.clay, apiKey: preservedApiKeys.clay },
                             apollo: { ...defaultIntegrations.apollo, apiKey: preservedApiKeys.apollo },
                             hunter: { ...defaultIntegrations.hunter, apiKey: preservedApiKeys.hunter },
-                            claude: { ...defaultIntegrations.claude, apiKey: preservedApiKeys.claude }
+
+                            claude: { ...defaultIntegrations.claude, apiKey: preservedApiKeys.claude },
+                            openai: { ...defaultIntegrations.openai, apiKey: preservedApiKeys.openai }
                         },
                         safety: defaultSafety
                     };

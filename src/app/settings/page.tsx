@@ -92,7 +92,7 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-gray-400 text-center mt-4">v1.4 (Table Preview)</p>
+                        <p className="text-xs text-gray-400 text-center mt-4">v1.5 (OpenAI + Fixes)</p>
                     </nav>
 
                     {/* Main Content */}
@@ -491,6 +491,35 @@ function IntegrationsTab() {
             <section className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">AI Providers</h2>
                 <div className="space-y-4">
+                    <IntegrationCard
+                        name="OpenAI GPT-4"
+                        description="Advanced reasoning model"
+                        enabled={integrations.openai?.enabled || false}
+                        onToggle={() => updateIntegrations({ openai: { ...integrations.openai, enabled: !integrations.openai?.enabled } })}
+                    >
+                        <div className="space-y-3">
+                            <input
+                                type="password"
+                                placeholder="API Key"
+                                value={integrations.openai?.apiKey || ''}
+                                onChange={(e) => updateIntegrations({ openai: { ...integrations.openai, apiKey: e.target.value } })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-black"
+                            />
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-gray-500 font-medium">Model</label>
+                                <select
+                                    value={integrations.openai?.model || 'gpt-4o'}
+                                    onChange={(e) => updateIntegrations({ openai: { ...integrations.openai, model: e.target.value } })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-white"
+                                >
+                                    <option value="gpt-4o">GPT-4o (Recommended)</option>
+                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </IntegrationCard>
+
                     <IntegrationCard
                         name="Google Gemini"
                         description="Message generation & qualification"
