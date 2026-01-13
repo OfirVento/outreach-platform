@@ -44,24 +44,35 @@ export default function QualifyStep() {
     );
 
     // Sort jobs: Remote first, then Hybrid, then On-site, then unknown
-    const sortedJobs = [...jobs].sort((a, b) => {
-        const locationOrder = { remote: 0, hybrid: 1, onsite: 2, unknown: 3 };
-        const reasonA = reasons[a.id] || '';
-        const reasonB = reasons[b.id] || '';
-
-        // Extract work location from reason or from isRemote flag
-        const getLocationPriority = (job: typeof a, reason: string): number => {
-            if (reason.includes('remote (from') || job.isRemote) return locationOrder.remote;
-            if (reason.includes('hybrid (from')) return locationOrder.hybrid;
-            if (reason.includes('onsite (from')) return locationOrder.onsite;
-            return locationOrder.unknown;
-        };
-
-        return getLocationPriority(a, reasonA) - getLocationPriority(b, reasonB);
-    });
-
     // Get configured tech stack
     const configuredTechStack = Object.values(businessContext.techStack).flat();
+
+    const getTechMatchCount = (job: JobPost): number => {
+        const jobTech = job.techStack || [];
+        return configuredTechStack.filter(tech =>
+            jobTech.some(jt => jt.toLowerCase().includes(tech.toLowerCase()))
+        ).length;
+    };
+
+    // Sort jobs: Qualified (Remote) First, then Tech Match Count (High to Low)
+    const sortedJobs = [...jobs].sort((a, b) => {
+        // 1. Qualified First
+        const isQualifiedA = qualifiedJobs.some(q => q.id === a.id);
+        const isQualifiedB = qualifiedJobs.some(q => q.id === b.id);
+        if (isQualifiedA !== isQualifiedB) return isQualifiedA ? -1 : 1;
+
+        // 2. Tech Match Count (Descending)
+        const countA = getTechMatchCount(a);
+        const countB = getTechMatchCount(b);
+        if (countA !== countB) return countB - countA;
+
+        // 3. Disqualified Last
+        const isDisqualifiedA = disqualifiedJobs.some(d => d.id === a.id);
+        const isDisqualifiedB = disqualifiedJobs.some(d => d.id === b.id);
+        if (isDisqualifiedA !== isDisqualifiedB) return isDisqualifiedA ? 1 : -1;
+
+        return 0;
+    });
 
     const handleAIQualify = async () => {
         const apiKey = integrations.gemini.apiKey;
@@ -133,17 +144,15 @@ export default function QualifyStep() {
                 const job = jobs.find(j => j.id === result.jobId);
                 if (!job) return;
 
-                // 1. Calculate Tech Match Score (Local Logic)
+                // 1. Calculate Tech Match Score (Local Logic) - Optional now, but useful if we render score later
                 const { percentage } = calculateMatchScore(
                     result.extractedData.techStack,
                     configuredTechStack
                 );
 
                 // 2. Determine Final Qualification
-                // Qualify = (AI said Remote/OK) AND (Tech Match >= 50%)
-                const techPass = percentage >= 0.5;
-                const isLocationQualified = result.qualified; // From AI
-                const isFinallyQualified = isLocationQualified && techPass;
+                // Qualify = Remote/OK ONLY. Tech skills not strictly required for status, but used for sorting.
+                const isFinallyQualified = result.qualified;
 
                 // Update job with extracted data from AI
                 const updatedJob: JobPost = {

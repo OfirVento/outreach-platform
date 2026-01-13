@@ -206,7 +206,8 @@ Classify as "onsite" if the description explicitly states:
 * *Default Logic:* If none of the above are found, and a specific physical location is provided, classify as "onsite".
 
 === 2. TECH SKILLS EXTRACTION & PRIORITIZATION ===
-Extract all technical skills, programming languages, frameworks, tools, and platforms mentioned in the job description.
+Extract an EXHAUSTIVE list of all technical skills, programming languages, frameworks, libraries, databases, cloud platforms, tools, CI/CD, and methodologies mentioned in the job description.
+**Do not summarize.** List every specific technology found.
 **Crucial Ordering Rule:** You must return a single list sorted by importance so the downstream application can calculate a match score.
 
 1. **Top Priority (Index 0-N):** Skills listed in the **Job Title**, **"Must Have"**, **"Required Qualifications"**, or **"Core Responsibilities"**.
@@ -366,7 +367,7 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'outreach-settings-v2', // Keeping store name to avoid data reset
-            version: 4, // Bump version to trigger migration check for new prompts
+            version: 5, // Bump version to trigger migration check for new prompts
             migrate: (persistedState: any, version: number) => {
                 // IMPORTANT: Always preserve API keys during migration!
                 const preservedApiKeys = {
@@ -377,25 +378,39 @@ export const useSettingsStore = create<SettingsState>()(
                     hunter: persistedState?.integrations?.hunter?.apiKey || '',
                 };
 
-                // Prior versions Logic (Handle migration from < 4)
+                let state = persistedState;
+
+                // Migration from versions < 4
                 if (version < 4) {
-                    return {
+                    state = {
                         ...defaultBusinessContext,
-                        ...persistedState, // Keep existing state
+                        ...state, // Keep existing state
                         integrations: {
                             ...defaultIntegrations,
-                            ...persistedState?.integrations,
+                            ...state?.integrations,
                             // Ensure API keys are preserved even if object structure changed
-                            gemini: { ...defaultIntegrations.gemini, ...(persistedState?.integrations?.gemini || {}), apiKey: preservedApiKeys.gemini || persistedState?.integrations?.gemini?.apiKey || '' },
-                            apify: { ...defaultIntegrations.apify, ...(persistedState?.integrations?.apify || {}), apiKey: preservedApiKeys.apify || persistedState?.integrations?.apify?.apiKey || '' },
+                            gemini: { ...defaultIntegrations.gemini, ...(state?.integrations?.gemini || {}), apiKey: preservedApiKeys.gemini || state?.integrations?.gemini?.apiKey || '' },
+                            apify: { ...defaultIntegrations.apify, ...(state?.integrations?.apify || {}), apiKey: preservedApiKeys.apify || state?.integrations?.apify?.apiKey || '' },
                         },
                         prompts: {
                             ...defaultPrompts, // Ensure new prompt keys exist
-                            ...(persistedState?.prompts || {})
+                            ...(state?.prompts || {})
                         }
                     };
                 }
-                return persistedState;
+
+                // Migration to version 5: Update Qualify Prompt to new exhaustive version
+                if (version < 5) {
+                    state = {
+                        ...state,
+                        prompts: {
+                            ...(state.prompts || {}),
+                            qualify: DEFAULT_QUALIFY_PROMPT
+                        }
+                    };
+                }
+
+                return state;
             },
             // Improved merge strategy for deep merging integrations
             merge: (persistedState: any, currentState: any) => {
