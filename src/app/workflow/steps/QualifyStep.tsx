@@ -15,6 +15,9 @@ import {
     Building2,
     Code2,
     Users,
+    User,
+    MapPin,
+    Calendar,
     AlertCircle,
     CheckCircle,
     XCircle,
@@ -24,7 +27,7 @@ import {
 
 export default function QualifyStep() {
     const { currentRun, qualifyJob, updateStepStatus, goToNextStep, addJobs } = useNewWorkflowStore();
-    const { businessContext, integrations } = useSettingsStore();
+    const { businessContext, integrations, prompts } = useSettingsStore();
     const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
     const [isAIQualifying, setIsAIQualifying] = useState(false);
     const [aiProgress, setAiProgress] = useState<{ current: number; total: number } | null>(null);
@@ -74,13 +77,19 @@ export default function QualifyStep() {
 
         try {
             // Call Gemini API to qualify jobs (work location + tech match only)
-            const results = await qualifyJobsWithGemini(jobs, apiKey, integrations.gemini.model || 'gemini-2.5-flash', {
-                techStack: configuredTechStack,
-                workLocation: businessContext.qualification.workLocation,
-                posterRequired: businessContext.qualification.posterRequired || 'any',
-                companyName: businessContext.companyName,
-                companyDescription: businessContext.whatWeDo
-            });
+            const results = await qualifyJobsWithGemini(
+                jobs,
+                apiKey,
+                integrations.gemini.model || 'gemini-2.5-flash',
+                {
+                    techStack: configuredTechStack,
+                    workLocation: businessContext.qualification.workLocation,
+                    posterRequired: businessContext.qualification.posterRequired || 'any',
+                    companyName: businessContext.companyName,
+                    companyDescription: businessContext.whatWeDo
+                },
+                prompts.qualify
+            );
 
             // Process results and update the store
             const newQualifiedJobs: JobPost[] = [];
@@ -88,11 +97,53 @@ export default function QualifyStep() {
             const newReasons: Record<string, string> = {};
             const updatedJobs: JobPost[] = [];
 
+            // Helper for weighted scoring
+            const calculateMatchScore = (jobSkills: string[], mySkills: string[]) => {
+                if (!jobSkills || jobSkills.length === 0) return { score: 0, percentage: 0 };
+
+                const mySkillsLower = new Set(mySkills.map(s => s.toLowerCase()));
+                let totalPossibleWeight = 0;
+                let earnedScore = 0;
+
+                jobSkills.forEach((skill, index) => {
+                    // Weight: first 3 items (critical) get weight 2, others 1
+                    const weight = index < 3 ? 2 : 1;
+                    totalPossibleWeight += weight;
+
+                    // Check for match (fuzzy)
+                    const skillLower = skill.toLowerCase();
+                    const isMatch = Array.from(mySkillsLower).some(mySkill =>
+                        skillLower.includes(mySkill) || mySkill.includes(skillLower)
+                    );
+
+                    if (isMatch) {
+                        earnedScore += weight;
+                    }
+                });
+
+                return {
+                    score: earnedScore,
+                    percentage: totalPossibleWeight > 0 ? (earnedScore / totalPossibleWeight) : 0
+                };
+            };
+
             results.forEach((result, index) => {
                 setAiProgress({ current: index + 1, total: results.length });
 
                 const job = jobs.find(j => j.id === result.jobId);
                 if (!job) return;
+
+                // 1. Calculate Tech Match Score (Local Logic)
+                const { percentage } = calculateMatchScore(
+                    result.extractedData.techStack,
+                    configuredTechStack
+                );
+
+                // 2. Determine Final Qualification
+                // Qualify = (AI said Remote/OK) AND (Tech Match >= 50%)
+                const techPass = percentage >= 0.5;
+                const isLocationQualified = result.qualified; // From AI
+                const isFinallyQualified = isLocationQualified && techPass;
 
                 // Update job with extracted data from AI
                 const updatedJob: JobPost = {
@@ -105,22 +156,25 @@ export default function QualifyStep() {
 
                 updatedJobs.push(updatedJob);
 
-                if (result.qualified) {
+                if (isFinallyQualified) {
                     newQualifiedJobs.push(updatedJob);
                 } else {
                     newDisqualifiedJobs.push(updatedJob);
                 }
 
-                // Format the reason with confidence, location source, and evidence
-                const locationInfo = result.extractedData.workLocation !== 'unknown'
-                    ? `${result.extractedData.workLocation} (from ${result.extractedData.detectedFrom})`
-                    : 'unknown';
-                const hasPoster = !!(job.poster?.name || job.poster?.linkedInUrl);
-                const evidence = result.extractedData.remoteEvidence
-                    ? ` | Evidence: "${result.extractedData.remoteEvidence}"`
-                    : '';
+                // Format the reason
+                // Format the reason
+                const locationSource = result.extractedData.detectedFrom !== 'none' ? ` (${result.extractedData.detectedFrom})` : '';
+                const evidence = result.extractedData.remoteEvidence ? ` | "${result.extractedData.remoteEvidence}"` : '';
 
-                newReasons[result.jobId] = `[${result.confidence}%] ${result.reason} | Location: ${locationInfo}${evidence}${hasPoster ? ` | Poster: ${job.poster?.name} ✓` : ''}`;
+                let reasonText = '';
+                if (result.extractedData.isRemote) {
+                    reasonText = `Remote ✓${locationSource}${evidence}`;
+                } else {
+                    reasonText = `Not Remote (${result.extractedData.workLocation}${locationSource})`;
+                }
+
+                newReasons[result.jobId] = reasonText;
             });
 
             // Verify all jobs were processed - add any missing ones
@@ -167,7 +221,7 @@ export default function QualifyStep() {
             console.error('AI Qualification error:', error);
             setAiError(error instanceof Error ? error.message : 'AI qualification failed');
         } finally {
-            setIsAIQualifying(false);
+            setIsAIQualifying(false); // Ensure this is reset!
             setAiProgress(null);
         }
     };
@@ -411,68 +465,50 @@ export default function QualifyStep() {
                                                     <Building2 className="w-3.5 h-3.5" />
                                                     {job.company}
                                                 </span>
-                                                {job.companySize && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Users className="w-3.5 h-3.5" />
-                                                        {job.companySize}
-                                                    </span>
+                                            </div>
+
+                                            {/* Clean Row: Location, Date, Poster */}
+                                            <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                                                <MapPin className="w-3.5 h-3.5" />
+                                                {job.location}
+                                                {job.postedDate && (
+                                                    <>
+                                                        <span className="text-gray-300">•</span>
+                                                        <Calendar className="w-3.5 h-3.5" />
+                                                        {new Date(job.postedDate).toLocaleDateString()}
+                                                    </>
+                                                )}
+                                                {job.poster?.name && (
+                                                    <>
+                                                        <span className="text-gray-300">•</span>
+                                                        <User className="w-3.5 h-3.5" />
+                                                        {job.poster.name}
+                                                    </>
                                                 )}
                                             </div>
 
-                                            {/* Tech Match */}
-                                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                                {/* Work Location Badge */}
-                                                {job.isRemote && (
-                                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                                        🌍 Remote
-                                                    </span>
-                                                )}
-                                                {!job.isRemote && job.location?.toLowerCase().includes('hybrid') && (
-                                                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                                                        🏠 Hybrid
-                                                    </span>
-                                                )}
-                                                {!job.isRemote && !job.location?.toLowerCase().includes('hybrid') && (
-                                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                                        🏢 On-site
-                                                    </span>
-                                                )}
-
-                                                {/* Poster Badge */}
-                                                {job.poster?.name ? (
-                                                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                                                        👤 {job.poster.name}
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-1 bg-gray-100 text-gray-400 rounded-full text-xs font-medium">
-                                                        👤 No poster
-                                                    </span>
-                                                )}
-
-                                                {techMatch.length > 0 ? (
-                                                    techMatch.map((tech) => (
-                                                        <span
-                                                            key={tech}
-                                                            className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium"
-                                                        >
-                                                            <Check className="w-3 h-3" />
-                                                            {tech}
-                                                        </span>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-xs text-gray-400">No tech stack match</span>
-                                                )}
-
-                                                {/* Other tech in job */}
-                                                {job.techStack?.filter(t => !techMatch.some(m => t.toLowerCase().includes(m.toLowerCase()))).slice(0, 3).map((tech) => (
-                                                    <span
-                                                        key={tech}
-                                                        className="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs"
-                                                    >
-                                                        {tech}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                            {/* Extracted Tech Skills */}
+                                            {job.techStack && job.techStack.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 mt-3">
+                                                    {job.techStack.map((tech, i) => {
+                                                        const isMatch = configuredTechStack.some(ct =>
+                                                            tech.toLowerCase().includes(ct.toLowerCase()) ||
+                                                            ct.toLowerCase().includes(tech.toLowerCase())
+                                                        );
+                                                        return (
+                                                            <span
+                                                                key={i}
+                                                                className={`px-2 py-0.5 rounded text-xs border ${isMatch
+                                                                    ? 'bg-green-50 border-green-200 text-green-700 font-medium'
+                                                                    : 'bg-gray-50 border-gray-200 text-gray-500'
+                                                                    }`}
+                                                            >
+                                                                {tech}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
 
                                             {reason && (
                                                 <p className="text-xs text-gray-500 mt-2 italic">{reason}</p>

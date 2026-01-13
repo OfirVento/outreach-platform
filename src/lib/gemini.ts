@@ -26,7 +26,8 @@ export async function qualifyJobsWithGemini(
         posterRequired: 'required' | 'any';
         companyName: string;
         companyDescription: string;
-    }
+    },
+    promptTemplate?: string
 ): Promise<QualificationResult[]> {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -59,13 +60,19 @@ export async function qualifyJobsWithGemini(
         return filteredResults;
     }
 
-    // Process in batches of 15 to avoid token limits
-    const batchSize = 15;
+    // Process in batches of 5 to avoid token limits and ensure consistent valid JSON output
+    const batchSize = 5;
     const aiResults: QualificationResult[] = [];
+
+    // Helper to generate dynamic criteria text (used if injecting into template)
+    const workLocationCriteriaText =
+        criteria.workLocation === 'remote' ? '⚠️ We want REMOTE jobs only! Hybrid or on-site → qualified: false' :
+            criteria.workLocation === 'hybrid' ? 'Remote OR hybrid jobs qualify. On-site only → qualified: false' :
+                criteria.workLocation === 'any' ? 'Any work location is acceptable.' : '';
 
     for (let i = 0; i < jobsToAnalyze.length; i += batchSize) {
         const batch = jobsToAnalyze.slice(i, i + batchSize);
-        const batchResults = await qualifyBatch(batch, endpoint, criteria);
+        const batchResults = await qualifyBatch(batch, endpoint, criteria, promptTemplate, workLocationCriteriaText);
         aiResults.push(...batchResults);
     }
 
@@ -81,7 +88,9 @@ async function qualifyBatch(
         posterRequired: 'required' | 'any';
         companyName: string;
         companyDescription: string;
-    }
+    },
+    promptTemplate?: string,
+    workLocationCriteriaText?: string
 ): Promise<QualificationResult[]> {
     const jobsData = jobs.map(job => ({
         id: job.id,
@@ -92,7 +101,18 @@ async function qualifyBatch(
         techStack: job.techStack
     }));
 
-    const prompt = `Task: Classify Job Work Mode and Qualify for ${criteria.companyName}
+    let prompt = '';
+
+    if (promptTemplate) {
+        // Use the user-provided template with variable injection
+        prompt = promptTemplate
+            .replace('{{companyName}}', criteria.companyName)
+            .replace('{{techStack}}', criteria.techStack.join(', '))
+            .replace('{{workLocationCriteria}}', workLocationCriteriaText || '')
+            .replace('{{jobsData}}', JSON.stringify(jobsData, null, 2));
+    } else {
+        // Fallback to legacy hardcoded prompt
+        prompt = `Task: Classify Job Work Mode and Qualify for ${criteria.companyName}
 
 You must analyze the title, location, and description fields for EVERY job entry to determine the work mode. Use the following strict logic to classify each job:
 
@@ -143,6 +163,7 @@ Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
     }
   }
 ]`;
+    }
 
     try {
         const response = await fetch(endpoint, {
@@ -178,7 +199,18 @@ Return ONLY a valid JSON array (no markdown, no code blocks, no explanation):
             cleanedText = cleanedText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
         }
 
-        const results: QualificationResult[] = JSON.parse(cleanedText);
+        const rawResults: any[] = JSON.parse(cleanedText);
+
+        // Map raw results to typed QualificationResult, specifically handling the techSkills -> techStack mapping
+        const results: QualificationResult[] = rawResults.map(r => ({
+            ...r,
+            extractedData: {
+                ...r.extractedData,
+                // Support both old 'techStack' and new 'techSkills' formats from prompt
+                techStack: r.extractedData.techSkills || r.extractedData.techStack || []
+            }
+        }));
+
         return results;
 
     } catch (error) {

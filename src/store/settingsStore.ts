@@ -101,10 +101,19 @@ export interface SafetySettings {
     optOutKeywords: string[];
 }
 
+export interface PromptConfig {
+    qualify: string;
+    compose_1st_touch: string;
+    compose_2nd_followup: string;
+    compose_3rd_followup: string;
+    compose_final_touch: string;
+}
+
 interface SettingsState {
     businessContext: BusinessContext;
     integrations: IntegrationConfig;
     safety: SafetySettings;
+    prompts: PromptConfig;
 
     // Actions
     updateBusinessContext: (updates: Partial<BusinessContext>) => void;
@@ -115,6 +124,7 @@ interface SettingsState {
     removeValueProp: (index: number) => void;
     addCaseStudy: (study: string) => void;
     removeCaseStudy: (index: number) => void;
+    updatePrompt: (key: keyof PromptConfig, value: string) => void;
 }
 
 const defaultBusinessContext: BusinessContext = {
@@ -150,13 +160,13 @@ const defaultBusinessContext: BusinessContext = {
 };
 
 const defaultIntegrations: IntegrationConfig = {
-    apify: { enabled: false, apiKey: '', actorId: 'bebity/linkedin-jobs-scraper' },
-    clay: { enabled: true, apiKey: '' },
-    apollo: { enabled: false, apiKey: '' },
-    hunter: { enabled: false, apiKey: '' },
-    gemini: { enabled: true, apiKey: '', model: 'gemini-2.5-flash' },
+    apify: { enabled: false, apiKey: process.env.NEXT_PUBLIC_APIFY_API_KEY || '', actorId: 'bebity/linkedin-jobs-scraper' },
+    clay: { enabled: true, apiKey: process.env.NEXT_PUBLIC_CLAY_API_KEY || '' },
+    apollo: { enabled: false, apiKey: process.env.NEXT_PUBLIC_APOLLO_API_KEY || '' },
+    hunter: { enabled: false, apiKey: process.env.NEXT_PUBLIC_HUNTER_API_KEY || '' },
+    gemini: { enabled: true, apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || '', model: 'gemini-2.5-flash' },
 
-    googleSheets: { enabled: false, spreadsheetId: '', clientId: '' }
+    googleSheets: { enabled: false, spreadsheetId: process.env.NEXT_PUBLIC_SHEETS_ID || '', clientId: process.env.NEXT_PUBLIC_SHEETS_CLIENT_ID || '' }
 };
 
 const defaultSafety: SafetySettings = {
@@ -173,12 +183,117 @@ const defaultSafety: SafetySettings = {
     optOutKeywords: ['unsubscribe', 'stop', 'remove me', 'opt out', 'not interested']
 };
 
+const DEFAULT_QUALIFY_PROMPT = `Task: Classify Job Work Mode, Extract Prioritized Tech Skills, and Qualify
+
+You must analyze the title, location, and description fields for EVERY job entry.
+
+=== 1. WORK MODE CLASSIFICATION ===
+Use the following strict logic to classify each job:
+
+**REMOTE**
+Classify as "remote" if you find keywords such as:
+* "Remote", "Work from home", "WFH", "Work from anywhere", "Home-based", "Virtual", "Telecommute", "Fully distributed"
+* "Remote first"
+* *Crucial Check:* Look for "Remote" explicitly mentioned in the location field or title.
+
+**HYBRID**
+Classify as "hybrid" if you find keywords such as:
+* "Hybrid", "Flexible work", "Mix of office and home", "X days in office", "Office occasionally"
+
+**ON-SITE**
+Classify as "onsite" if the description explicitly states:
+* "On-site", "Work from office", "In-office"
+* *Default Logic:* If none of the above are found, and a specific physical location is provided, classify as "onsite".
+
+=== 2. TECH SKILLS EXTRACTION & PRIORITIZATION ===
+Extract all technical skills, programming languages, frameworks, tools, and platforms mentioned in the job description.
+**Crucial Ordering Rule:** You must return a single list sorted by importance so the downstream application can calculate a match score.
+
+1. **Top Priority (Index 0-N):** Skills listed in the **Job Title**, **"Must Have"**, **"Required Qualifications"**, or **"Core Responsibilities"**.
+2. **Lower Priority:** Skills listed in **"Nice to have"**, **"Bonus points"**, **"Preferred"**, or "Pluses".
+
+*Format:* Return a flat array of strings. The most critical skills must appear at the beginning of the array.
+
+=== 3. QUALIFICATION LOGIC ===
+For the purpose of this output, a job is **qualified** based solely on location availability.
+
+* **Qualified = TRUE** if the classification is **"remote"**.
+* **Qualified = FALSE** if the classification is "hybrid" or "onsite".
+
+*(Note: The downstream app will perform the 50% skills matching logic using the extracted techSkills list).*
+
+=== JOBS TO ANALYZE ===
+{{jobsData}}
+
+=== OUTPUT FORMAT ===
+Return ONLY a valid JSON array:
+[
+  {
+    "jobId": "string",
+    "qualified": boolean,
+    "confidence": number,
+    "reason": "string",
+    "extractedData": {
+      "isRemote": boolean,
+      "workLocation": "remote" | "hybrid" | "onsite",
+      "detectedFrom": "title" | "location" | "description" | "none",
+      "remoteEvidence": "string | null",
+      "techSkills": ["string"]
+    }
+  }
+]`;
+
+// Compose Templates Defaults
+const DEFAULT_COMPOSE_1ST = `Hi {{firstName}},
+
+I noticed {{company}} is hiring for a {{jobTitle}}. At {{myCompany}}, we provide pre-vetted {{techMatch}} developers who can start in 1-2 weeks.
+
+{{valueProps}}
+
+Would you be open to a quick chat about your hiring needs? I'd be happy to share some relevant profiles.
+
+Best,
+{{senderName}}`;
+
+const DEFAULT_COMPOSE_2ND = `Hi {{firstName}},
+
+Following up on my note about the {{jobTitle}} role at {{company}}.
+
+We just placed a senior {{techMatch}} engineer with a similar role - thought it might be relevant to your search.
+
+Would you have 15 mins this week for a quick call?
+
+{{senderName}}`;
+
+const DEFAULT_COMPOSE_3RD = `Hi {{firstName}},
+
+Last check-in on the {{jobTitle}} position. I have 2-3 strong candidates who match your requirements and are available now.
+
+If timing isn't right, no worries - just let me know and I won't follow up further.
+
+{{senderName}}`;
+
+const DEFAULT_COMPOSE_FINAL = `Hi {{firstName}},
+
+Final note on your {{jobTitle}} search. Happy to reconnect whenever you're actively looking for {{techMatch}} talent.
+
+{{senderName}}`;
+
+const defaultPrompts: PromptConfig = {
+    qualify: DEFAULT_QUALIFY_PROMPT,
+    compose_1st_touch: DEFAULT_COMPOSE_1ST,
+    compose_2nd_followup: DEFAULT_COMPOSE_2ND,
+    compose_3rd_followup: DEFAULT_COMPOSE_3RD,
+    compose_final_touch: DEFAULT_COMPOSE_FINAL
+};
+
 export const useSettingsStore = create<SettingsState>()(
     persist(
         (set) => ({
             businessContext: defaultBusinessContext,
             integrations: defaultIntegrations,
             safety: defaultSafety,
+            prompts: defaultPrompts,
 
             updateBusinessContext: (updates: Partial<BusinessContext>) =>
                 set((state: SettingsState) => ({
@@ -242,11 +357,16 @@ export const useSettingsStore = create<SettingsState>()(
                         ...state.businessContext,
                         caseStudies: state.businessContext.caseStudies.filter((_: string, i: number) => i !== index)
                     }
-                }))
+                })),
+
+            updatePrompt: (key: keyof PromptConfig, value: string) =>
+                set((state: SettingsState) => ({
+                    prompts: { ...state.prompts, [key]: value }
+                })),
         }),
         {
-            name: 'outreach-settings-v2',
-            version: 2,
+            name: 'outreach-settings-v2', // Keeping store name to avoid data reset
+            version: 4, // Bump version to trigger migration check for new prompts
             migrate: (persistedState: any, version: number) => {
                 // IMPORTANT: Always preserve API keys during migration!
                 const preservedApiKeys = {
@@ -255,44 +375,53 @@ export const useSettingsStore = create<SettingsState>()(
                     clay: persistedState?.integrations?.clay?.apiKey || '',
                     apollo: persistedState?.integrations?.apollo?.apiKey || '',
                     hunter: persistedState?.integrations?.hunter?.apiKey || '',
-
                 };
 
-                // If coming from v1 or no version, reset to new defaults but keep API keys
-                if (version < 2) {
+                // Prior versions Logic (Handle migration from < 4)
+                if (version < 4) {
                     return {
-                        businessContext: {
-                            ...defaultBusinessContext,
-                            // Preserve any existing business context
-                            companyName: persistedState?.businessContext?.companyName || defaultBusinessContext.companyName,
-                            whatWeDo: persistedState?.businessContext?.whatWeDo || defaultBusinessContext.whatWeDo,
-                            senderName: persistedState?.businessContext?.senderName || defaultBusinessContext.senderName,
-                            senderTitle: persistedState?.businessContext?.senderTitle || defaultBusinessContext.senderTitle
-                        },
+                        ...defaultBusinessContext,
+                        ...persistedState, // Keep existing state
                         integrations: {
                             ...defaultIntegrations,
-                            // Preserve ALL API keys
-                            gemini: { ...defaultIntegrations.gemini, apiKey: preservedApiKeys.gemini },
-                            apify: { ...defaultIntegrations.apify, apiKey: preservedApiKeys.apify },
-                            clay: { ...defaultIntegrations.clay, apiKey: preservedApiKeys.clay },
-                            apollo: { ...defaultIntegrations.apollo, apiKey: preservedApiKeys.apollo },
-                            hunter: { ...defaultIntegrations.hunter, apiKey: preservedApiKeys.hunter },
-
-
+                            ...persistedState?.integrations,
+                            // Ensure API keys are preserved even if object structure changed
+                            gemini: { ...defaultIntegrations.gemini, ...(persistedState?.integrations?.gemini || {}), apiKey: preservedApiKeys.gemini || persistedState?.integrations?.gemini?.apiKey || '' },
+                            apify: { ...defaultIntegrations.apify, ...(persistedState?.integrations?.apify || {}), apiKey: preservedApiKeys.apify || persistedState?.integrations?.apify?.apiKey || '' },
                         },
-                        safety: defaultSafety
+                        prompts: {
+                            ...defaultPrompts, // Ensure new prompt keys exist
+                            ...(persistedState?.prompts || {})
+                        }
                     };
                 }
                 return persistedState;
             },
-            // Ensure API keys are merged properly on rehydration
+            // Improved merge strategy for deep merging integrations
             merge: (persistedState: any, currentState: any) => {
+                const mergedIntegrations = { ...currentState.integrations };
+
+                if (persistedState?.integrations) {
+                    for (const key in persistedState.integrations) {
+                        // @ts-ignore
+                        if (mergedIntegrations[key]) {
+                            // @ts-ignore
+                            mergedIntegrations[key] = {
+                                // @ts-ignore
+                                ...mergedIntegrations[key],
+                                ...persistedState.integrations[key]
+                            };
+                        }
+                    }
+                }
+
                 return {
                     ...currentState,
                     ...persistedState,
-                    integrations: {
-                        ...currentState.integrations,
-                        ...persistedState?.integrations
+                    integrations: mergedIntegrations,
+                    prompts: {
+                        ...currentState.prompts,
+                        ...(persistedState?.prompts || {})
                     }
                 };
             }

@@ -14,14 +14,15 @@ import {
     Plus,
     X,
     Save,
-    ArrowLeft
+    ArrowLeft,
+    Brain
 } from 'lucide-react';
 import { useSettingsStore, TECH_CATEGORIES } from '../../store/settingsStore';
 
-type SettingsTab = 'business' | 'integrations' | 'safety';
+type SettingsTab = 'business' | 'integrations' | 'safety' | 'prompts';
 
 export default function SettingsPage() {
-    console.log('App Version: v1.5 (OpenAI + Fixes)');
+    console.log('App Version: v1.8 (Prompts & Logic)');
     const [activeTab, setActiveTab] = useState<SettingsTab>('business');
     const [saved, setSaved] = useState(false);
 
@@ -72,7 +73,8 @@ export default function SettingsPage() {
                             {[
                                 { id: 'business', label: 'Business Context', icon: Building2, desc: 'Company & tech stack' },
                                 { id: 'integrations', label: 'Integrations', icon: Plug, desc: 'APIs & connections' },
-                                { id: 'safety', label: 'Safety & Limits', icon: Shield, desc: 'Rate limits & rules' }
+                                { id: 'safety', label: 'Safety & Limits', icon: Shield, desc: 'Rate limits & rules' },
+                                { id: 'prompts', label: 'Prompts & Logic', icon: Brain, desc: 'AI prompts & steps' }
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
@@ -93,7 +95,7 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-gray-400 text-center mt-4">v1.7 (Gemini Only)</p>
+                        <p className="text-xs text-gray-400 text-center mt-4">v1.8 (Prompts)</p>
                     </nav>
 
                     {/* Main Content */}
@@ -101,6 +103,7 @@ export default function SettingsPage() {
                         {activeTab === 'business' && <BusinessContextTab />}
                         {activeTab === 'integrations' && <IntegrationsTab />}
                         {activeTab === 'safety' && <SafetyTab />}
+                        {activeTab === 'prompts' && <PromptsTab />}
                     </main>
                 </div>
             </div>
@@ -674,6 +677,157 @@ function SafetyTab() {
                     ))}
                 </div>
             </section>
+        </div>
+    );
+}
+
+// Prompts & Logic Tab
+function PromptsTab() {
+    const { prompts, updatePrompt } = useSettingsStore();
+    const [activeNode, setActiveNode] = useState('qualify');
+    const [composeTab, setComposeTab] = useState('1st_touch');
+
+    const nodes = [
+        { id: 'source', label: 'Source', desc: 'Job Import' },
+        { id: 'qualify', label: 'Qualify', desc: 'AI Classification' },
+        { id: 'enrich', label: 'Enrich', desc: 'Data Enrichment' },
+        { id: 'compose', label: 'Compose', desc: 'Message Gen' },
+        { id: 'export', label: 'Export', desc: 'Sync & CSV' }
+    ];
+
+    return (
+        <div className="flex gap-6 min-h-[600px]">
+            {/* Node Sidebar */}
+            <div className="w-48 shrink-0 space-y-2">
+                {nodes.map(node => (
+                    <button
+                        key={node.id}
+                        onClick={() => setActiveNode(node.id)}
+                        className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${activeNode === node.id
+                            ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            }`}
+                    >
+                        {node.label}
+                        <p className="text-xs font-normal opacity-70">{node.desc}</p>
+                    </button>
+                ))}
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 bg-white rounded-xl border border-gray-200 p-6 overflow-y-auto">
+                {activeNode === 'source' && (
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Source Node Logic</h3>
+                        <p className="text-gray-600 mb-4">
+                            Imports job posts from JSON files (e.g., from Apify LinkedIn Scraper or manual uploads).
+                            Parses standard fields (Title, Company, Location, Date, Poster) and stores them in the workflow run.
+                        </p>
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">AI Prompt</span>
+                            <p className="text-sm text-gray-500 mt-2 italic">No AI prompt used in this step.</p>
+                        </div>
+                    </div>
+                )}
+                {activeNode === 'qualify' && (
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Qualify Node Logic</h3>
+                        <p className="text-gray-600 mb-4">
+                            Uses Google Gemini AI to analyze job descriptions.
+                            Determines if the job matches your configured work location preference (Remote/Hybrid/On-site) and tech stack.
+                        </p>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Gemini Prompt Template</label>
+                            <div className="relative">
+                                <textarea
+                                    value={prompts.qualify}
+                                    onChange={(e) => updatePrompt('qualify', e.target.value)}
+                                    rows={20}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs leading-relaxed text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                                <span className="font-semibold">Available Variables:</span>
+                                <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{companyName}}'}</span>
+                                <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{techStack}}'}</span>
+                                <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{workLocationCriteria}}'}</span>
+                                <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{jobsData}}'}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {activeNode === 'enrich' && (
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Enrich Node Logic</h3>
+                        <p className="text-gray-600 mb-4">
+                            Enriches qualified leads using third-party providers (Clay, Apollo, Hunter) to find contact emails and additional company data.
+                        </p>
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">AI Prompt</span>
+                            <p className="text-sm text-gray-500 mt-2 italic">No AI prompt used in this step (API integration only).</p>
+                        </div>
+                    </div>
+                )}
+                {activeNode === 'compose' && (
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Compose Node Logic</h3>
+                        <p className="text-gray-600 mb-4">
+                            Define the message templates used for outreach sequences. Use variables like <code>{'{{firstName}}'}</code> to inject contact data dynamically.
+                        </p>
+
+                        <div className="border-b border-gray-200 mb-4">
+                            <div className="flex gap-4">
+                                {['1st_touch', '2nd_followup', '3rd_followup', 'final_touch'].map(step => (
+                                    <button
+                                        key={step}
+                                        onClick={() => setComposeTab(step)}
+                                        className={`pb-2 text-sm font-medium transition-colors border-b-2 ${composeTab === step
+                                            ? 'border-blue-600 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        {step.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="relative">
+                            <textarea
+                                // @ts-ignore
+                                value={prompts[`compose_${composeTab}`]}
+                                // @ts-ignore
+                                onChange={(e) => updatePrompt(`compose_${composeTab}`, e.target.value)}
+                                rows={12}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs leading-relaxed text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                            <span className="font-semibold">Available Variables:</span>
+                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{firstName}}'}</span>
+                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{company}}'}</span>
+                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{jobTitle}}'}</span>
+                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{techMatch}}'}</span>
+                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{myCompany}}'}</span>
+                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{valueProps}}'}</span>
+                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{senderName}}'}</span>
+                        </div>
+                    </div>
+                )}
+                {activeNode === 'export' && (
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Export Node Logic</h3>
+                        <p className="text-gray-600 mb-4">
+                            Syncs final data to Google Sheets or downloads as CSV.
+                        </p>
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">AI Prompt</span>
+                            <p className="text-sm text-gray-500 mt-2 italic">No AI prompt used in this step.</p>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

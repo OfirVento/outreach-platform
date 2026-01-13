@@ -21,7 +21,7 @@ import {
 
 export default function ComposeStep() {
     const { currentRun, addMessages, updateMessage, approveMessage, approveAllMessages, updateStepStatus, goToNextStep } = useNewWorkflowStore();
-    const { businessContext } = useSettingsStore();
+    const { businessContext, prompts } = useSettingsStore();
     const [isGenerating, setIsGenerating] = useState(false);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
@@ -59,45 +59,43 @@ export default function ComposeStep() {
             personalizationFacts.push(`Posted ${daysAgo} days ago`);
         }
 
-        // Generate message based on sequence and context
-        let message = '';
+        // Prepare variables for template injection
+        const variables: Record<string, string> = {
+            '{{firstName}}': contact.name.split(' ')[0],
+            '{{company}}': contact.company,
+            '{{jobTitle}}': job.title,
+            '{{techMatch}}': (job.techStack || []).join(', ') || 'software development',
+            '{{myCompany}}': businessContext.companyName || 'our agency',
+            '{{senderName}}': businessContext.senderName || '[Your Name]',
+            '{{valueProps}}': businessContext.valueProps.length > 0
+                ? businessContext.valueProps.map(vp => `• ${vp}`).join('\n')
+                : '• Pre-vetted senior developers\n• Start in 1-2 weeks'
+        };
 
-        if (sequenceStep === '1st_touch') {
-            message = `Hi ${contact.name.split(' ')[0]},
-
-I noticed ${contact.company} is hiring for a ${job.title}. ${businessContext.companyName ? `At ${businessContext.companyName}, we` : 'We'} provide pre-vetted ${techMatch} developers who can start in 1-2 weeks.
-
-${businessContext.valueProps[0] || 'Our developers go through rigorous vetting so you don\'t have to interview dozens of candidates.'}
-
-Would you be open to a quick chat about your hiring needs? I'd be happy to share some relevant profiles.
-
-Best,
-${businessContext.senderName || '[Your Name]'}`;
-        } else if (sequenceStep === '2nd_followup') {
-            message = `Hi ${contact.name.split(' ')[0]},
-
-Following up on my note about the ${job.title} role at ${contact.company}.
-
-We just placed a senior ${(job.techStack || ['developer'])[0]} engineer with a similar role - thought it might be relevant to your search.
-
-Would you have 15 mins this week for a quick call?
-
-${businessContext.senderName || '[Your Name]'}`;
-        } else if (sequenceStep === '3rd_followup') {
-            message = `Hi ${contact.name.split(' ')[0]},
-
-Last check-in on the ${job.title} position. I have 2-3 strong candidates who match your requirements and are available now.
-
-If timing isn't right, no worries - just let me know and I won't follow up further.
-
-${businessContext.senderName || '[Your Name]'}`;
-        } else {
-            message = `Hi ${contact.name.split(' ')[0]},
-
-Final note on your ${job.title} search. Happy to reconnect whenever you're actively looking for ${techMatch} talent.
-
-${businessContext.senderName || '[Your Name]'}`;
+        // Select template based on sequence step
+        let template = '';
+        switch (sequenceStep) {
+            case '1st_touch':
+                template = prompts.compose_1st_touch;
+                break;
+            case '2nd_followup':
+                template = prompts.compose_2nd_followup;
+                break;
+            case '3rd_followup':
+                template = prompts.compose_3rd_followup;
+                break;
+            case 'final_touch':
+                template = prompts.compose_final_touch;
+                break;
+            default:
+                template = prompts.compose_1st_touch;
         }
+
+        // Replace all variables in the template
+        let message = template;
+        Object.entries(variables).forEach(([placeholder, value]) => {
+            message = message.split(placeholder).join(value);
+        });
 
         return {
             id: crypto.randomUUID(),
@@ -199,8 +197,8 @@ ${businessContext.senderName || '[Your Name]'}`;
                             onClick={handleGenerate}
                             disabled={isGenerating || contactsWithInfo.length === 0}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isGenerating
-                                    ? 'bg-amber-100 text-amber-600'
-                                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                                ? 'bg-amber-100 text-amber-600'
+                                : 'bg-amber-600 text-white hover:bg-amber-700'
                                 }`}
                         >
                             <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-pulse' : ''}`} />
@@ -282,8 +280,8 @@ ${businessContext.senderName || '[Your Name]'}`;
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2">
                                                         <span className={`px-2 py-1 rounded text-xs font-medium ${message.sequenceStep === '1st_touch'
-                                                                ? 'bg-blue-100 text-blue-700'
-                                                                : 'bg-gray-100 text-gray-600'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'bg-gray-100 text-gray-600'
                                                             }`}>
                                                             {message.sequenceStep === '1st_touch' ? '1st Touch' :
                                                                 message.sequenceStep === '2nd_followup' ? '2nd Follow-up' :
