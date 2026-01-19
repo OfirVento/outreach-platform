@@ -15,7 +15,9 @@ import {
     X,
     Save,
     ArrowLeft,
-    Brain
+    Brain,
+    Upload,
+    Download
 } from 'lucide-react';
 import { useSettingsStore, TECH_CATEGORIES } from '../../store/settingsStore';
 
@@ -62,6 +64,49 @@ export default function SettingsPage() {
                         {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                         {saved ? 'Saved!' : 'Save Changes'}
                     </button>
+                    <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-200">
+                        <button
+                            onClick={() => {
+                                const state = useSettingsStore.getState();
+                                const data = JSON.stringify(state, null, 2);
+                                const blob = new Blob([data], { type: 'application/json' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'outreach-settings.json';
+                                a.click();
+                            }}
+                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Export Configuration"
+                        >
+                            <Download className="w-5 h-5" />
+                        </button>
+                        <label className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" title="Import Configuration">
+                            <Upload className="w-5 h-5" />
+                            <input
+                                type="file"
+                                accept=".json"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = (e) => {
+                                        try {
+                                            const content = e.target?.result as string;
+                                            const data = JSON.parse(content);
+                                            useSettingsStore.persist.rehydrate();
+                                            useSettingsStore.setState(data);
+                                            alert('Configuration imported successfully!');
+                                        } catch (err) {
+                                            alert('Invalid configuration file');
+                                        }
+                                    };
+                                    reader.readAsText(file);
+                                }}
+                            />
+                        </label>
+                    </div>
                 </div>
             </header>
 
