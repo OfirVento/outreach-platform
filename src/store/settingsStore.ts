@@ -246,50 +246,69 @@ Return ONLY a valid JSON array:
 ]`;
 
 // Compose Templates Defaults
-const DEFAULT_COMPOSE_SYS_INSTRUCTION = `You are an expert Sales Development Representative (SDR) at {{companyName}}.
-Your goal is to write a personalized outreach message to {{contactName}} who works at {{contactCompany}} as {{contactTitle}}.
+// Compose Templates Defaults
+const DEFAULT_COMPOSE_SYS_INSTRUCTION = `SYSTEM / ROLE
+You are an elite LinkedIn SDR + hiring-adjacent advisor for Siema. Your job is to generate a 3-message outreach SEQUENCE from {{senderName}} ({{senderTitle}}) to {{contactName}} ({{contactTitle}}) at {{contactCompany}}.
 
-MY COMPANY CONTEXT:
-What we do: {{whatWeDo}}
-Value Props: {{valueProps}}
-Tone: {{toneOfVoice}}
-My Name: {{senderName}}
-My Title: {{senderTitle}}
+SIEMA CONTEXT (use this in messaging)
+- Offer: On-demand senior engineers / outcome-driven pods (not outsourcing, not “butts in seats”).
+- Core value props:
+  1) Top-tier seniors only: ~3.4% acceptance rate (high bar).
+  2) ~50% lower burn vs typical local senior hiring; often framed as ~53% savings (cost efficiency for senior output, not cheap labor).
+  3) Fast deployment: bench-to-start in ~48 hours; designed to get someone productive fast.
+  4) Enterprise trust: ISO 27001 / SOC 2 Type II / GDPR-ready.
+- Messaging thesis: “Don’t hire seats. Hire outcomes.” Emphasize first-week outcomes + governance + speed + reduced risk.
 
-THE JOB THEY ARE HIRING FOR:
-Title: {{jobTitle}}
-Tech Stack: {{jobTechStack}}
-Description Snippet: {{jobDescriptionSnippet}}
+TONE
+Direct, human, helpful, slightly blunt. No hype words (“world-class”, “revolutionary”, etc.). No robotic formatting. Short lines. Confident but not pushy.
 
-GUIDELINES:
-- Be concise and conversational.
-- Mention specific details from their job post to show I did my research.
-- Explain how our "on-demand senior developers" solution specifically helps with their current hiring need.
-- Don't sound robotic.
-- End with a low-friction Call to Action (CTA).
+INPUTS
+- Persona: {{personaType}}
+- Relationship: {{relationshipState}}
+- Trigger: {{triggerSignal}}
+- Job: {{jobTitle}} ({{jobTechStack}})
+- Urgency: {{urgencyLevel}}
 
-OUTPUT FORMAT:
-Return ONLY the message body. Do not include subject lines or "Here is the message:" prefixes.`;
+HARD RULES (Global)
+1) Each message must reference 1 concrete detail from the job post (stack, responsibility, seniority, timeline, etc.).
+2) No meeting ask in Msg1. Only micro-yes CTA (Yes/No or A/B/C).
+3) No links. No attachments mentioned. No emojis unless the tone explicitly calls for it.`;
 
-const DEFAULT_COMPOSE_1ST = `Task: Write a 1st touch message.
-Focus: Introduction and value add.
-Context: I noticed they are hiring for {{jobTitle}}.
-Goal: Ask for a quick chat to discuss their hiring needs.`;
+const DEFAULT_COMPOSE_1ST = `Task: Write Message 1 (LinkedIn Connection Note or 1st DM).
+Rules:
+- If relationshipState is 'not_connected', write a connection note (max 300 chars).
+- If 'request_sent' or 'connected', write a direct message (max 650 chars).
+- Proven Angle: 48h deploy OR direction-check framing.
+- Offer ONE micro-asset: “2–3 profile sampler pack” or “48h start plan”.
+- No meeting ask.
 
-const DEFAULT_COMPOSE_2ND = `Task: Write a 2nd follow-up message (sent 3 days later).
-Focus: Re-iteration and social proof.
-Context: Mention we just placed a specific {{techMatch}} engineer recently.
-Goal: Ask for 15 mins this week.`;
+Output: Return ONLY the message body text.`;
 
-const DEFAULT_COMPOSE_3RD = `Task: Write a 3rd follow-up message (sent 7 days later).
-Focus: Urgency/Availability.
-Context: I have 2-3 strong candidates available immediately.
-Goal: Check if they are still looking.`;
+const DEFAULT_COMPOSE_2ND = `Task: Write Message 2 (2-3 days later).
+Assumption: They did not reply to Message 1.
+Rules:
+- Proven Angle: Quality bar (3.4% acceptance) OR Trust (ISO/SOC2/GDPR).
+- If urgencyLevel is 'high', pivot to "bench drop: available Monday".
+- Keep it short (max 400 chars).
 
-const DEFAULT_COMPOSE_FINAL = `Task: Write a final break-up message.
-Focus: Professional closing.
-Context: Leave the door open but stop following up for now.
-Goal: Reconnect in the future.`;
+Output: Return ONLY the message body text.`;
+
+const DEFAULT_COMPOSE_3RD = `Task: Write Message 3 (5-7 days later).
+Assumption: They did not reply to Message 2.
+Rules:
+- Proven Angle: Cost efficiency (~50% burn / ~53% savings).
+- CTA: "Start Monday" check or permission to close file.
+
+Output: Return ONLY the message body text.`;
+
+const DEFAULT_COMPOSE_FINAL = `Task: Write Message 4 (Break-up / Final Touch).
+Assumption: No reply after 3 attempts.
+Rules:
+- Professional closing.
+- Leave the door open but stop following up.
+- One-liner.
+
+Output: Return ONLY the message body text.`;
 
 const defaultPrompts: PromptConfig = {
     qualify: DEFAULT_QUALIFY_PROMPT,
@@ -379,7 +398,7 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'outreach-settings-v2', // Keeping store name to avoid data reset
-            version: 6, // Bump version to trigger migration check for new prompts
+            version: 7, // Bump version to trigger migration check for new prompts
             migrate: (persistedState: any, version: number) => {
                 // IMPORTANT: Always preserve API keys during migration!
                 const preservedApiKeys = {
@@ -424,6 +443,21 @@ export const useSettingsStore = create<SettingsState>()(
 
                 // Migration to version 6: Add Compose System Instruction
                 if (version < 6) {
+                    state = {
+                        ...state,
+                        prompts: {
+                            ...(state.prompts || {}),
+                            compose_sys_instruction: DEFAULT_COMPOSE_SYS_INSTRUCTION,
+                            compose_1st_touch: DEFAULT_COMPOSE_1ST,
+                            compose_2nd_followup: DEFAULT_COMPOSE_2ND,
+                            compose_3rd_followup: DEFAULT_COMPOSE_3RD,
+                            compose_final_touch: DEFAULT_COMPOSE_FINAL
+                        }
+                    };
+                }
+
+                // Migration to version 7: Update Compose System & Logic to Elite Strategy
+                if (version < 7) {
                     state = {
                         ...state,
                         prompts: {

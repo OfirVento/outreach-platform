@@ -63,19 +63,56 @@ export default function ComposeStep() {
 
                 const steps: GeneratedMessage['sequenceStep'][] = ['1st_touch', '2nd_followup', '3rd_followup', 'final_touch'];
 
+                // Advanced Variable Calculation
+                const titleLower = contact.title.toLowerCase();
+                const jobTitleLower = job.title.toLowerCase();
+                const daysOpen = job.postedDate
+                    ? Math.floor((Date.now() - new Date(job.postedDate).getTime()) / (1000 * 60 * 60 * 24))
+                    : 0;
+
+                let personaType = 'Recruiter';
+                if (titleLower.includes('cto') || titleLower.includes('chief') || titleLower.includes('vp') || titleLower.includes('head of engineering')) {
+                    personaType = 'Decision Maker (CTO/VP)';
+                } else if (titleLower.includes('talent') || titleLower.includes('recruiter') || titleLower.includes('hr')) {
+                    personaType = 'Recruiter / Talent';
+                } else if (titleLower.includes('lead') || titleLower.includes('manager') || titleLower.includes('director')) {
+                    personaType = 'Hiring Manager';
+                }
+
+                let urgencyLevel = 'medium';
+                if (daysOpen > 30) urgencyLevel = 'high (job open 30+ days)';
+                if (daysOpen < 7) urgencyLevel = 'high (fresh post)';
+                if (jobTitleLower.includes('urgent') || jobTitleLower.includes('immediate')) urgencyLevel = 'critical';
+
+                const triggerSignal = daysOpen < 14 ? 'fresh_job_post' : 'stale_job_post';
+
                 const variables: Record<string, string> = {
+                    // Base Context
                     '{{companyName}}': businessContext.companyName,
                     '{{whatWeDo}}': businessContext.whatWeDo,
                     '{{valueProps}}': businessContext.valueProps.join('\n- '),
                     '{{toneOfVoice}}': businessContext.toneOfVoice,
                     '{{senderName}}': businessContext.senderName,
                     '{{senderTitle}}': businessContext.senderTitle,
+
+                    // Contact Context
                     '{{contactName}}': contact.name,
                     '{{contactTitle}}': contact.title,
                     '{{contactCompany}}': contact.company,
+
+                    // Job Context
                     '{{jobTitle}}': job.title,
                     '{{jobTechStack}}': (job.techStack || []).join(', '),
                     '{{jobDescriptionSnippet}}': job.description.substring(0, 500).replace(/\n/g, ' ') + '...',
+
+                    // Computed/Advanced Signals
+                    '{{personaType}}': personaType,
+                    '{{urgencyLevel}}': urgencyLevel,
+                    '{{triggerSignal}}': triggerSignal,
+                    '{{relationshipState}}': contact.linkedInUrl ? 'request_sent' : 'not_connected', // Simple default for now
+                    '{{benchMatchAvailable}}': 'true', // Hardcoded as per strategy (we always have bench)
+
+                    // Legacy Constants (Backwards Compat)
                     '{{firstName}}': contact.name.split(' ')[0],
                     '{{company}}': contact.company,
                     '{{techMatch}}': (job.techStack || []).join(', '),
