@@ -104,10 +104,18 @@ export interface SafetySettings {
 export interface PromptConfig {
     qualify: string;
     compose_sys_instruction: string;
-    compose_1st_touch: string;
-    compose_2nd_followup: string;
-    compose_3rd_followup: string;
-    compose_final_touch: string;
+
+    // English Templates
+    compose_en_1st_touch: string;
+    compose_en_2nd_followup: string;
+    compose_en_3rd_followup: string;
+    compose_en_final_touch: string;
+
+    // Hebrew Templates
+    compose_he_1st_touch: string;
+    compose_he_2nd_followup: string;
+    compose_he_3rd_followup: string;
+    compose_he_final_touch: string;
 }
 
 interface SettingsState {
@@ -246,7 +254,6 @@ Return ONLY a valid JSON array:
 ]`;
 
 // Compose Templates Defaults
-// Compose Templates Defaults
 const DEFAULT_COMPOSE_SYS_INSTRUCTION = `SYSTEM / ROLE
 You are an elite LinkedIn SDR + hiring-adjacent advisor for Siema. Your job is to generate a 3-message outreach SEQUENCE from {{senderName}} ({{senderTitle}}) to {{contactName}} ({{contactTitle}}) at {{contactCompany}}.
 
@@ -274,7 +281,8 @@ HARD RULES (Global)
 2) No meeting ask in Msg1. Only micro-yes CTA (Yes/No or A/B/C).
 3) No links. No attachments mentioned. No emojis unless the tone explicitly calls for it.`;
 
-const DEFAULT_COMPOSE_1ST = `Task: Write Message 1 (LinkedIn Connection Note or 1st DM).
+// ENGLISH DEFAULTS
+const DEFAULT_COMPOSE_EN_1ST = `Task: Write Message 1 (LinkedIn Connection Note or 1st DM).
 Rules:
 - If relationshipState is 'not_connected', write a connection note (max 300 chars).
 - If 'request_sent' or 'connected', write a direct message (max 650 chars).
@@ -284,7 +292,7 @@ Rules:
 
 Output: Return ONLY the message body text.`;
 
-const DEFAULT_COMPOSE_2ND = `Task: Write Message 2 (2-3 days later).
+const DEFAULT_COMPOSE_EN_2ND = `Task: Write Message 2 (2-3 days later).
 Assumption: They did not reply to Message 1.
 Rules:
 - Proven Angle: Quality bar (3.4% acceptance) OR Trust (ISO/SOC2/GDPR).
@@ -293,7 +301,7 @@ Rules:
 
 Output: Return ONLY the message body text.`;
 
-const DEFAULT_COMPOSE_3RD = `Task: Write Message 3 (5-7 days later).
+const DEFAULT_COMPOSE_EN_3RD = `Task: Write Message 3 (5-7 days later).
 Assumption: They did not reply to Message 2.
 Rules:
 - Proven Angle: Cost efficiency (~50% burn / ~53% savings).
@@ -301,7 +309,7 @@ Rules:
 
 Output: Return ONLY the message body text.`;
 
-const DEFAULT_COMPOSE_FINAL = `Task: Write Message 4 (Break-up / Final Touch).
+const DEFAULT_COMPOSE_EN_FINAL = `Task: Write Message 4 (Break-up / Final Touch).
 Assumption: No reply after 3 attempts.
 Rules:
 - Professional closing.
@@ -310,13 +318,56 @@ Rules:
 
 Output: Return ONLY the message body text.`;
 
+// HEBREW DEFAULTS
+const DEFAULT_COMPOSE_HE_1ST = `Task: Write Message 1 (LinkedIn Connection Note or 1st DM) in Hebrew.
+Context: You are writing to a tech leader in Israel. Tone should be professional but direct ("Dugri").
+Rules:
+- If 'not_connected', write a connection note (max 300 chars).
+- If 'connected', direct message (max 650 chars).
+- Angle: 48h deployment or "Bdikah" (check).
+- Do not sound like a cheesy sales bot. Use natural Hebrew phrasing suitable for tech.
+
+Output: Return ONLY the message body text in Hebrew.`;
+
+const DEFAULT_COMPOSE_HE_2ND = `Task: Write Message 2 (2-3 days later) in Hebrew.
+Assumption: No reply.
+Rules:
+- Angle: Quality (3.4% acceptance) or Trust.
+- Keep it short.
+
+Output: Return ONLY the message body text in Hebrew.`;
+
+const DEFAULT_COMPOSE_HE_3RD = `Task: Write Message 3 (5-7 days later) in Hebrew.
+Assumption: No reply.
+Rules:
+- Angle: Cost efficiency / Savings.
+- CTA: Simple check if relevant.
+
+Output: Return ONLY the message body text in Hebrew.`;
+
+const DEFAULT_COMPOSE_HE_FINAL = `Task: Write Message 4 (Break-up) in Hebrew.
+Assumption: No reply.
+Rules:
+- Polite closing.
+- "Feel free to reach out later".
+
+Output: Return ONLY the message body text in Hebrew.`;
+
 const defaultPrompts: PromptConfig = {
     qualify: DEFAULT_QUALIFY_PROMPT,
     compose_sys_instruction: DEFAULT_COMPOSE_SYS_INSTRUCTION,
-    compose_1st_touch: DEFAULT_COMPOSE_1ST,
-    compose_2nd_followup: DEFAULT_COMPOSE_2ND,
-    compose_3rd_followup: DEFAULT_COMPOSE_3RD,
-    compose_final_touch: DEFAULT_COMPOSE_FINAL
+
+    // English
+    compose_en_1st_touch: DEFAULT_COMPOSE_EN_1ST,
+    compose_en_2nd_followup: DEFAULT_COMPOSE_EN_2ND,
+    compose_en_3rd_followup: DEFAULT_COMPOSE_EN_3RD,
+    compose_en_final_touch: DEFAULT_COMPOSE_EN_FINAL,
+
+    // Hebrew
+    compose_he_1st_touch: DEFAULT_COMPOSE_HE_1ST,
+    compose_he_2nd_followup: DEFAULT_COMPOSE_HE_2ND,
+    compose_he_3rd_followup: DEFAULT_COMPOSE_HE_3RD,
+    compose_he_final_touch: DEFAULT_COMPOSE_HE_FINAL
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -398,7 +449,7 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'outreach-settings-v2', // Keeping store name to avoid data reset
-            version: 7, // Bump version to trigger migration check for new prompts
+            version: 8, // Bump version to trigger migration check for new prompts
             migrate: (persistedState: any, version: number) => {
                 // IMPORTANT: Always preserve API keys during migration!
                 const preservedApiKeys = {
@@ -448,27 +499,58 @@ export const useSettingsStore = create<SettingsState>()(
                         prompts: {
                             ...(state.prompts || {}),
                             compose_sys_instruction: DEFAULT_COMPOSE_SYS_INSTRUCTION,
-                            compose_1st_touch: DEFAULT_COMPOSE_1ST,
-                            compose_2nd_followup: DEFAULT_COMPOSE_2ND,
-                            compose_3rd_followup: DEFAULT_COMPOSE_3RD,
-                            compose_final_touch: DEFAULT_COMPOSE_FINAL
+                            compose_1st_touch: DEFAULT_COMPOSE_EN_1ST, // Map to EN default
+                            compose_2nd_followup: DEFAULT_COMPOSE_EN_2ND, // Map to EN default
+                            compose_3rd_followup: DEFAULT_COMPOSE_EN_3RD, // Map to EN default
+                            compose_final_touch: DEFAULT_COMPOSE_EN_FINAL // Map to EN default
                         }
                     };
                 }
 
                 // Migration to version 7: Update Compose System & Logic to Elite Strategy
+                // (This logic effectively just updates the prompts to whatever defaults are now)
                 if (version < 7) {
+                    // Do nothing here, as version 8 migration below will overwrite prompts anyway.
+                    // But we keep structure for historical accuracy if needed.
+                }
+
+                // Migration to version 8: English vs Hebrew Support
+                if (version < 8) {
+                    // Map old keys to new English keys if they exist
+                    const oldPrompts = state.prompts || {};
+                    const compose_en_1st_touch = oldPrompts.compose_1st_touch || DEFAULT_COMPOSE_EN_1ST;
+                    const compose_en_2nd_followup = oldPrompts.compose_2nd_followup || DEFAULT_COMPOSE_EN_2ND;
+                    const compose_en_3rd_followup = oldPrompts.compose_3rd_followup || DEFAULT_COMPOSE_EN_3RD;
+                    const compose_en_final_touch = oldPrompts.compose_final_touch || DEFAULT_COMPOSE_EN_FINAL;
+
                     state = {
                         ...state,
                         prompts: {
-                            ...(state.prompts || {}),
-                            compose_sys_instruction: DEFAULT_COMPOSE_SYS_INSTRUCTION,
-                            compose_1st_touch: DEFAULT_COMPOSE_1ST,
-                            compose_2nd_followup: DEFAULT_COMPOSE_2ND,
-                            compose_3rd_followup: DEFAULT_COMPOSE_3RD,
-                            compose_final_touch: DEFAULT_COMPOSE_FINAL
+                            ...oldPrompts,
+                            qualify: oldPrompts.qualify || DEFAULT_QUALIFY_PROMPT, // Ensure qualify is preserved or defaulted
+                            compose_sys_instruction: oldPrompts.compose_sys_instruction || DEFAULT_COMPOSE_SYS_INSTRUCTION,
+
+                            // Map old to new EN
+                            compose_en_1st_touch,
+                            compose_en_2nd_followup,
+                            compose_en_3rd_followup,
+                            compose_en_final_touch,
+
+                            // Add new HE defaults
+                            compose_he_1st_touch: DEFAULT_COMPOSE_HE_1ST,
+                            compose_he_2nd_followup: DEFAULT_COMPOSE_HE_2ND,
+                            compose_he_3rd_followup: DEFAULT_COMPOSE_HE_3RD,
+                            compose_he_final_touch: DEFAULT_COMPOSE_HE_FINAL
                         }
                     };
+
+                    // Clean up old keys (optional, but cleaner state)
+                    if (state.prompts) {
+                        delete state.prompts.compose_1st_touch;
+                        delete state.prompts.compose_2nd_followup;
+                        delete state.prompts.compose_3rd_followup;
+                        delete state.prompts.compose_final_touch;
+                    }
                 }
 
                 return state;

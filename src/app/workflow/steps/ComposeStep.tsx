@@ -125,8 +125,12 @@ export default function ComposeStep() {
                     systemInstruction: sysInstruction
                 });
 
+                // Auto-detect language context (Default EN, switch to HE if Israel)
+                const isIsrael = job.location.toLowerCase().includes('israel') || job.location.toLowerCase().includes('tel aviv');
+                const lang = isIsrael ? 'he' : 'en';
+
                 for (const step of steps) {
-                    const promptKey = `compose_${step}` as keyof typeof prompts;
+                    const promptKey = `compose_${lang}_${step}` as keyof typeof prompts;
                     let taskInstruction = prompts[promptKey] || '';
                     taskInstruction = hydrate(taskInstruction, variables);
 

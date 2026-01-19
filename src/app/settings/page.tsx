@@ -731,6 +731,7 @@ function PromptsTab() {
     const { prompts, updatePrompt } = useSettingsStore();
     const [activeNode, setActiveNode] = useState('qualify');
     const [composeTab, setComposeTab] = useState('1st_touch');
+    const [composeLang, setComposeLang] = useState<'en' | 'he'>('en');
 
     const nodes = [
         { id: 'source', label: 'Source', desc: 'Job Import' },
@@ -741,9 +742,9 @@ function PromptsTab() {
     ];
 
     return (
-        <div className="flex gap-6 min-h-[600px]">
-            {/* Node Sidebar */}
-            <div className="w-48 shrink-0 space-y-2">
+        <div className="flex gap-6 h-[calc(100vh-200px)]">
+            {/* Sidebar */}
+            <div className="w-64 flex flex-col gap-2 overflow-y-auto pr-2">
                 {nodes.map(node => (
                     <button
                         key={node.id}
@@ -816,19 +817,45 @@ function PromptsTab() {
                 )}
                 {activeNode === 'compose' && (
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-2">Compose Node Logic</h3>
-                        <p className="text-gray-600 mb-6">
-                            Configure the AI Persona and the specific tasks for each step in the sequence.
-                        </p>
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 mb-1">Compose Node Logic</h3>
+                                <p className="text-gray-600 text-sm">
+                                    Configure the AI Persona and the specific tasks for each step in the sequence.
+                                </p>
+                            </div>
+
+                            {/* Language Toggle */}
+                            <div className="flex items-center bg-gray-100 p-1 rounded-lg border border-gray-200">
+                                <button
+                                    onClick={() => setComposeLang('en')}
+                                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${composeLang === 'en'
+                                            ? 'bg-white text-blue-600 shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                >
+                                    English 🇺🇸
+                                </button>
+                                <button
+                                    onClick={() => setComposeLang('he')}
+                                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${composeLang === 'he'
+                                            ? 'bg-white text-blue-600 shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                >
+                                    Hebrew 🇮🇱
+                                </button>
+                            </div>
+                        </div>
 
                         {/* System Instruction */}
                         <div className="mb-8">
                             <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
                                 <Brain className="w-4 h-4 text-purple-600" />
-                                AI System Instruction (Persona & Context)
+                                AI System Instruction (Global Persona)
                             </label>
                             <p className="text-sm text-gray-500 mb-2">
-                                Define who the AI is, its goal, and the context it has access to.
+                                Defines the persona and context for BOTH languages (Language agnostic or update as needed).
                             </p>
                             <div className="relative">
                                 <textarea
@@ -838,17 +865,13 @@ function PromptsTab() {
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs leading-relaxed text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                             </div>
-                            <div className="mt-2 text-xs text-gray-500 flex flex-wrap gap-2">
-                                <span className="font-semibold">Variables:</span>
-                                {['{{companyName}}', '{{whatWeDo}}', '{{valueProps}}', '{{contactName}}', '{{jobTitle}}'].map(v => (
-                                    <span key={v} className="font-mono bg-gray-100 px-1 rounded text-gray-600">{v}</span>
-                                ))}
-                            </div>
                         </div>
 
                         {/* Sequence Tasks */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-900 mb-4">Sequence Step Directions</label>
+                            <label className="block text-sm font-bold text-gray-900 mb-4">
+                                {composeLang === 'en' ? 'English' : 'Hebrew'} Sequence Step Directions
+                            </label>
 
                             <div className="border-b border-gray-200 mb-4">
                                 <div className="flex gap-4">
@@ -870,14 +893,14 @@ function PromptsTab() {
                             <div className="relative">
                                 <textarea
                                     // @ts-ignore
-                                    value={prompts[`compose_${composeTab}`]}
+                                    value={prompts[`compose_${composeLang}_${composeTab}`]}
                                     // @ts-ignore
-                                    onChange={(e) => updatePrompt(`compose_${composeTab}`, e.target.value)}
-                                    rows={6}
+                                    onChange={(e) => updatePrompt(`compose_${composeLang}_${composeTab}`, e.target.value)}
+                                    rows={10}
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs leading-relaxed text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                                 <p className="text-xs text-gray-500 mt-2">
-                                    Specific instructions for this step (e.g., "Ask for a meeting", "Mention new case study").
+                                    Specific instructions for this step in <strong>{composeLang.toUpperCase()}</strong>.
                                 </p>
                             </div>
                         </div>
