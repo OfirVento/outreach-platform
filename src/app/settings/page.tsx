@@ -772,46 +772,69 @@ function PromptsTab() {
                 {activeNode === 'compose' && (
                     <div>
                         <h3 className="text-lg font-bold text-gray-900 mb-2">Compose Node Logic</h3>
-                        <p className="text-gray-600 mb-4">
-                            Define the message templates used for outreach sequences. Use variables like <code>{'{{firstName}}'}</code> to inject contact data dynamically.
+                        <p className="text-gray-600 mb-6">
+                            Configure the AI Persona and the specific tasks for each step in the sequence.
                         </p>
 
-                        <div className="border-b border-gray-200 mb-4">
-                            <div className="flex gap-4">
-                                {['1st_touch', '2nd_followup', '3rd_followup', 'final_touch'].map(step => (
-                                    <button
-                                        key={step}
-                                        onClick={() => setComposeTab(step)}
-                                        className={`pb-2 text-sm font-medium transition-colors border-b-2 ${composeTab === step
-                                            ? 'border-blue-600 text-blue-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700'
-                                            }`}
-                                    >
-                                        {step.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                    </button>
+                        {/* System Instruction */}
+                        <div className="mb-8">
+                            <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
+                                <Brain className="w-4 h-4 text-purple-600" />
+                                AI System Instruction (Persona & Context)
+                            </label>
+                            <p className="text-sm text-gray-500 mb-2">
+                                Define who the AI is, its goal, and the context it has access to.
+                            </p>
+                            <div className="relative">
+                                <textarea
+                                    value={prompts.compose_sys_instruction}
+                                    onChange={(e) => updatePrompt('compose_sys_instruction', e.target.value)}
+                                    rows={12}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs leading-relaxed text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500 flex flex-wrap gap-2">
+                                <span className="font-semibold">Variables:</span>
+                                {['{{companyName}}', '{{whatWeDo}}', '{{valueProps}}', '{{contactName}}', '{{jobTitle}}'].map(v => (
+                                    <span key={v} className="font-mono bg-gray-100 px-1 rounded text-gray-600">{v}</span>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="relative">
-                            <textarea
-                                // @ts-ignore
-                                value={prompts[`compose_${composeTab}`]}
-                                // @ts-ignore
-                                onChange={(e) => updatePrompt(`compose_${composeTab}`, e.target.value)}
-                                rows={12}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs leading-relaxed text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                            <span className="font-semibold">Available Variables:</span>
-                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{firstName}}'}</span>
-                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{company}}'}</span>
-                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{jobTitle}}'}</span>
-                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{techMatch}}'}</span>
-                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{myCompany}}'}</span>
-                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{valueProps}}'}</span>
-                            <span className="ml-2 font-mono bg-gray-100 px-1 rounded">{'{{senderName}}'}</span>
+                        {/* Sequence Tasks */}
+                        <div>
+                            <label className="block text-sm font-bold text-gray-900 mb-4">Sequence Step Directions</label>
+
+                            <div className="border-b border-gray-200 mb-4">
+                                <div className="flex gap-4">
+                                    {['1st_touch', '2nd_followup', '3rd_followup', 'final_touch'].map(step => (
+                                        <button
+                                            key={step}
+                                            onClick={() => setComposeTab(step)}
+                                            className={`pb-2 text-sm font-medium transition-colors border-b-2 ${composeTab === step
+                                                ? 'border-blue-600 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                                }`}
+                                        >
+                                            {step.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="relative">
+                                <textarea
+                                    // @ts-ignore
+                                    value={prompts[`compose_${composeTab}`]}
+                                    // @ts-ignore
+                                    onChange={(e) => updatePrompt(`compose_${composeTab}`, e.target.value)}
+                                    rows={6}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs leading-relaxed text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Specific instructions for this step (e.g., "Ask for a meeting", "Mention new case study").
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}

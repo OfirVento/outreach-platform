@@ -21,7 +21,7 @@ import {
 
 export default function ComposeStep() {
     const { currentRun, addMessages, updateMessage, approveMessage, approveAllMessages, updateStepStatus, goToNextStep } = useNewWorkflowStore();
-    const { businessContext, prompts } = useSettingsStore();
+    const { businessContext, prompts, integrations } = useSettingsStore();
     const [isGenerating, setIsGenerating] = useState(false);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
@@ -32,111 +32,120 @@ export default function ComposeStep() {
     const messages = currentRun?.composeData.messages || [];
     const contactsWithInfo = contacts.filter(c => c.linkedInUrl || c.email);
 
-    const generateMessage = (contact: Contact, job: JobPost, sequenceStep: GeneratedMessage['sequenceStep']): GeneratedMessage => {
-        const now = new Date();
-        const sendDate = new Date(now);
-
-        // Calculate send date based on sequence
-        if (sequenceStep === '2nd_followup') {
-            sendDate.setDate(sendDate.getDate() + 3);
-        } else if (sequenceStep === '3rd_followup') {
-            sendDate.setDate(sendDate.getDate() + 7);
-        } else if (sequenceStep === 'final_touch') {
-            sendDate.setDate(sendDate.getDate() + 14);
-        }
-
-        const techMatch = (job.techStack || []).join(', ') || 'software development';
-        const personalizationFacts: string[] = [];
-
-        if (job.poster?.name === contact.name) {
-            personalizationFacts.push(`Posted the ${job.title} role`);
-        }
-        if (job.isRemote) {
-            personalizationFacts.push('Remote position');
-        }
-        if (job.postedDate) {
-            const daysAgo = Math.floor((Date.now() - new Date(job.postedDate).getTime()) / (1000 * 60 * 60 * 24));
-            personalizationFacts.push(`Posted ${daysAgo} days ago`);
-        }
-
-        // Prepare variables for template injection
-        const variables: Record<string, string> = {
-            '{{firstName}}': contact.name.split(' ')[0],
-            '{{company}}': contact.company,
-            '{{jobTitle}}': job.title,
-            '{{techMatch}}': (job.techStack || []).join(', ') || 'software development',
-            '{{myCompany}}': businessContext.companyName || 'our agency',
-            '{{senderName}}': businessContext.senderName || '[Your Name]',
-            '{{valueProps}}': businessContext.valueProps.length > 0
-                ? businessContext.valueProps.map(vp => `• ${vp}`).join('\n')
-                : '• Pre-vetted senior developers\n• Start in 1-2 weeks'
-        };
-
-        // Select template based on sequence step
-        let template = '';
-        switch (sequenceStep) {
-            case '1st_touch':
-                template = prompts.compose_1st_touch;
-                break;
-            case '2nd_followup':
-                template = prompts.compose_2nd_followup;
-                break;
-            case '3rd_followup':
-                template = prompts.compose_3rd_followup;
-                break;
-            case 'final_touch':
-                template = prompts.compose_final_touch;
-                break;
-            default:
-                template = prompts.compose_1st_touch;
-        }
-
-        // Replace all variables in the template
-        let message = template;
-        Object.entries(variables).forEach(([placeholder, value]) => {
-            message = message.split(placeholder).join(value);
+    // Helper to replace variables
+    const hydrate = (template: string, vars: Record<string, string>) => {
+        let output = template;
+        Object.entries(vars).forEach(([key, value]) => {
+            output = output.split(key).join(value || '');
         });
-
-        return {
-            id: crypto.randomUUID(),
-            contactId: contact.id,
-            jobId: job.id,
-            sequenceStep,
-            channel: contact.email ? 'both' : 'linkedin',
-            subject: sequenceStep === '1st_touch'
-                ? `Re: ${job.title} at ${contact.company}`
-                : `Quick follow-up - ${job.title}`,
-            message,
-            personalizationFacts,
-            suggestedSendDate: sendDate.toISOString().split('T')[0],
-            status: 'draft',
-            createdAt: now.toISOString()
-        };
+        return output;
     };
 
     const handleGenerate = async () => {
+        if (!integrations.gemini.enabled || !integrations.gemini.apiKey) {
+            alert('Please configure Google Gemini in Settings > Integrations to use AI generation.');
+            return;
+        }
+
         setIsGenerating(true);
-
-        // Simulate AI generation delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
         const newMessages: GeneratedMessage[] = [];
+        const generationPromises: Promise<void>[] = [];
 
-        contactsWithInfo.forEach(contact => {
+        // Concurrency limiter (simple batching could be better but this is fine for demo)
+        const generateForContact = async (contact: Contact) => {
             const job = qualifiedJobs.find(j => j.id === contact.jobId);
             if (!job) return;
 
-            // Check if messages already exist for this contact
+            // Check if messages already exist
             if (messages.some(m => m.contactId === contact.id)) return;
 
-            // Generate message sequence
-            newMessages.push(generateMessage(contact, job, '1st_touch'));
-            newMessages.push(generateMessage(contact, job, '2nd_followup'));
-            newMessages.push(generateMessage(contact, job, '3rd_followup'));
-        });
+            const steps: GeneratedMessage['sequenceStep'][] = ['1st_touch', '2nd_followup', '3rd_followup', 'final_touch'];
 
-        addMessages(newMessages);
-        updateStepStatus('compose', 'completed');
+            // Prepare Variables
+            const variables: Record<string, string> = {
+                '{{companyName}}': businessContext.companyName,
+                '{{whatWeDo}}': businessContext.whatWeDo,
+                '{{valueProps}}': businessContext.valueProps.join('\n- '),
+                '{{toneOfVoice}}': businessContext.toneOfVoice,
+                '{{senderName}}': businessContext.senderName,
+                '{{senderTitle}}': businessContext.senderTitle,
+                '{{contactName}}': contact.name,
+                '{{contactTitle}}': contact.title,
+                '{{contactCompany}}': contact.company,
+                '{{jobTitle}}': job.title,
+                '{{jobTechStack}}': (job.techStack || []).join(', '),
+                '{{jobDescriptionSnippet}}': job.description.substring(0, 500).replace(/\n/g, ' ') + '...',
+                // Legacy support
+                '{{firstName}}': contact.name.split(' ')[0],
+                '{{company}}': contact.company,
+                '{{techMatch}}': (job.techStack || []).join(', '),
+                '{{myCompany}}': businessContext.companyName
+            };
+
+            const sysInstruction = hydrate(prompts.compose_sys_instruction || '', variables);
+
+            for (const step of steps) {
+                // Determine template key
+                const promptKey = `compose_${step}` as keyof typeof prompts;
+                let taskInstruction = prompts[promptKey] || '';
+                taskInstruction = hydrate(taskInstruction, variables);
+
+                // Calculate send date
+                const now = new Date();
+                const sendDate = new Date(now);
+                if (step === '2nd_followup') sendDate.setDate(sendDate.getDate() + 3);
+                else if (step === '3rd_followup') sendDate.setDate(sendDate.getDate() + 7);
+                else if (step === 'final_touch') sendDate.setDate(sendDate.getDate() + 14);
+
+                try {
+                    const response = await fetch('/api/gemini/compose', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            apiKey: integrations.gemini.apiKey,
+                            model: integrations.gemini.model,
+                            systemInstruction: sysInstruction,
+                            taskInstruction: taskInstruction
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('API failed');
+
+                    const data = await response.json();
+
+                    if (data.message) {
+                        newMessages.push({
+                            id: crypto.randomUUID(),
+                            contactId: contact.id,
+                            jobId: job.id,
+                            sequenceStep: step,
+                            channel: contact.email ? 'both' : 'linkedin',
+                            subject: step === '1st_touch' ? `Re: ${job.title}` : `Follow-up: ${job.title}`,
+                            message: data.message.trim(),
+                            personalizationFacts: [], // Could extract if we asked AI to return JSON
+                            suggestedSendDate: sendDate.toISOString().split('T')[0],
+                            status: 'draft',
+                            createdAt: now.toISOString()
+                        });
+                    }
+                } catch (e) {
+                    console.error(`Failed to generate ${step} for ${contact.name}`, e);
+                    // Fallback to error message or skip
+                }
+            }
+        };
+
+        // Process contacts in batches of 3 to avoid rate limits
+        const BATCH_SIZE = 3;
+        for (let i = 0; i < contactsWithInfo.length; i += BATCH_SIZE) {
+            const batch = contactsWithInfo.slice(i, i + BATCH_SIZE);
+            await Promise.all(batch.map(c => generateForContact(c)));
+        }
+
+        if (newMessages.length > 0) {
+            addMessages(newMessages);
+            updateStepStatus('compose', 'completed');
+        }
         setIsGenerating(false);
     };
 

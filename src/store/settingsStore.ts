@@ -103,6 +103,7 @@ export interface SafetySettings {
 
 export interface PromptConfig {
     qualify: string;
+    compose_sys_instruction: string;
     compose_1st_touch: string;
     compose_2nd_followup: string;
     compose_3rd_followup: string;
@@ -245,43 +246,54 @@ Return ONLY a valid JSON array:
 ]`;
 
 // Compose Templates Defaults
-const DEFAULT_COMPOSE_1ST = `Hi {{firstName}},
+const DEFAULT_COMPOSE_SYS_INSTRUCTION = `You are an expert Sales Development Representative (SDR) at {{companyName}}.
+Your goal is to write a personalized outreach message to {{contactName}} who works at {{contactCompany}} as {{contactTitle}}.
 
-I noticed {{company}} is hiring for a {{jobTitle}}. At {{myCompany}}, we provide pre-vetted {{techMatch}} developers who can start in 1-2 weeks.
+MY COMPANY CONTEXT:
+What we do: {{whatWeDo}}
+Value Props: {{valueProps}}
+Tone: {{toneOfVoice}}
+My Name: {{senderName}}
+My Title: {{senderTitle}}
 
-{{valueProps}}
+THE JOB THEY ARE HIRING FOR:
+Title: {{jobTitle}}
+Tech Stack: {{jobTechStack}}
+Description Snippet: {{jobDescriptionSnippet}}
 
-Would you be open to a quick chat about your hiring needs? I'd be happy to share some relevant profiles.
+GUIDELINES:
+- Be concise and conversational.
+- Mention specific details from their job post to show I did my research.
+- Explain how our "on-demand senior developers" solution specifically helps with their current hiring need.
+- Don't sound robotic.
+- End with a low-friction Call to Action (CTA).
 
-Best,
-{{senderName}}`;
+OUTPUT FORMAT:
+Return ONLY the message body. Do not include subject lines or "Here is the message:" prefixes.`;
 
-const DEFAULT_COMPOSE_2ND = `Hi {{firstName}},
+const DEFAULT_COMPOSE_1ST = `Task: Write a 1st touch message.
+Focus: Introduction and value add.
+Context: I noticed they are hiring for {{jobTitle}}.
+Goal: Ask for a quick chat to discuss their hiring needs.`;
 
-Following up on my note about the {{jobTitle}} role at {{company}}.
+const DEFAULT_COMPOSE_2ND = `Task: Write a 2nd follow-up message (sent 3 days later).
+Focus: Re-iteration and social proof.
+Context: Mention we just placed a specific {{techMatch}} engineer recently.
+Goal: Ask for 15 mins this week.`;
 
-We just placed a senior {{techMatch}} engineer with a similar role - thought it might be relevant to your search.
+const DEFAULT_COMPOSE_3RD = `Task: Write a 3rd follow-up message (sent 7 days later).
+Focus: Urgency/Availability.
+Context: I have 2-3 strong candidates available immediately.
+Goal: Check if they are still looking.`;
 
-Would you have 15 mins this week for a quick call?
-
-{{senderName}}`;
-
-const DEFAULT_COMPOSE_3RD = `Hi {{firstName}},
-
-Last check-in on the {{jobTitle}} position. I have 2-3 strong candidates who match your requirements and are available now.
-
-If timing isn't right, no worries - just let me know and I won't follow up further.
-
-{{senderName}}`;
-
-const DEFAULT_COMPOSE_FINAL = `Hi {{firstName}},
-
-Final note on your {{jobTitle}} search. Happy to reconnect whenever you're actively looking for {{techMatch}} talent.
-
-{{senderName}}`;
+const DEFAULT_COMPOSE_FINAL = `Task: Write a final break-up message.
+Focus: Professional closing.
+Context: Leave the door open but stop following up for now.
+Goal: Reconnect in the future.`;
 
 const defaultPrompts: PromptConfig = {
     qualify: DEFAULT_QUALIFY_PROMPT,
+    compose_sys_instruction: DEFAULT_COMPOSE_SYS_INSTRUCTION,
     compose_1st_touch: DEFAULT_COMPOSE_1ST,
     compose_2nd_followup: DEFAULT_COMPOSE_2ND,
     compose_3rd_followup: DEFAULT_COMPOSE_3RD,
@@ -367,7 +379,7 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'outreach-settings-v2', // Keeping store name to avoid data reset
-            version: 5, // Bump version to trigger migration check for new prompts
+            version: 6, // Bump version to trigger migration check for new prompts
             migrate: (persistedState: any, version: number) => {
                 // IMPORTANT: Always preserve API keys during migration!
                 const preservedApiKeys = {
@@ -406,6 +418,21 @@ export const useSettingsStore = create<SettingsState>()(
                         prompts: {
                             ...(state.prompts || {}),
                             qualify: DEFAULT_QUALIFY_PROMPT
+                        }
+                    };
+                }
+
+                // Migration to version 6: Add Compose System Instruction
+                if (version < 6) {
+                    state = {
+                        ...state,
+                        prompts: {
+                            ...(state.prompts || {}),
+                            compose_sys_instruction: DEFAULT_COMPOSE_SYS_INSTRUCTION,
+                            compose_1st_touch: DEFAULT_COMPOSE_1ST,
+                            compose_2nd_followup: DEFAULT_COMPOSE_2ND,
+                            compose_3rd_followup: DEFAULT_COMPOSE_3RD,
+                            compose_final_touch: DEFAULT_COMPOSE_FINAL
                         }
                     };
                 }
