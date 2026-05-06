@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <title>Snake Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <div class="score-box">
+                <span class="label">SCORE</span>
+                <span id="score">0</span>
+            </div>
+            <h1 class="title">SNAKE</h1>
+            <div class="score-box">
+                <span class="label">BEST</span>
+                <span id="high-score">0</span>
+            </div>
+        </header>
+
+        <div class="canvas-wrapper">
+            <canvas id="game-canvas"></canvas>
+
+            <div id="start-screen" class="overlay">
+                <h2>SNAKE</h2>
+                <p class="instruction">החלק על המסך כדי לכוון את הנחש</p>
+                <button id="start-btn" class="btn">התחל משחק</button>
+            </div>
+
+            <div id="game-over-screen" class="overlay hidden">
+                <h2>GAME OVER</h2>
+                <p>ניקוד: <span id="final-score">0</span></p>
+                <p id="new-record" class="hidden">שיא חדש!</p>
+                <button id="restart-btn" class="btn">שחק שוב</button>
+            </div>
+        </div>
+
+        <p class="hint">💡 החלק למעלה / למטה / ימינה / שמאלה</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
