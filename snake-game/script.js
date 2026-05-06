@@ -9,10 +9,12 @@
     const gameOverScreen = document.getElementById('game-over-screen');
     const startBtn = document.getElementById('start-btn');
     const restartBtn = document.getElementById('restart-btn');
+    const confettiContainer = document.getElementById('confetti');
 
     const GRID_SIZE = 20;
     const TICK_MS = 130;
     const HIGH_SCORE_KEY = 'snake_high_score';
+    const FRUITS = ['🍎', '🍌', '🍓', '🍉', '🍇', '🍒', '🍊', '🥝', '🍑', '🍍'];
 
     let cellSize = 16;
     let cols = GRID_SIZE;
@@ -20,12 +22,13 @@
     let snake = [];
     let direction = { x: 1, y: 0 };
     let pendingDirection = { x: 1, y: 0 };
-    let food = { x: 0, y: 0 };
+    let food = { x: 0, y: 0, emoji: '🍎' };
     let score = 0;
     let highScore = +localStorage.getItem(HIGH_SCORE_KEY) || 0;
     let running = false;
     let lastTick = 0;
     let rafId = null;
+    let flashUntil = 0;
 
     highScoreEl.textContent = highScore;
 
@@ -55,6 +58,7 @@
         direction = { x: 1, y: 0 };
         pendingDirection = { x: 1, y: 0 };
         score = 0;
+        flashUntil = 0;
         scoreEl.textContent = score;
         spawnFood();
     }
@@ -64,7 +68,8 @@
             const x = Math.floor(Math.random() * cols);
             const y = Math.floor(Math.random() * rows);
             if (!snake.some(s => s.x === x && s.y === y)) {
-                food = { x, y };
+                const emoji = FRUITS[Math.floor(Math.random() * FRUITS.length)];
+                food = { x, y, emoji };
                 return;
             }
         }
@@ -90,6 +95,7 @@
             score++;
             scoreEl.textContent = score;
             playEat();
+            flashUntil = performance.now() + 200;
             spawnFood();
         } else {
             snake.shift();
@@ -113,21 +119,25 @@
             ctx.stroke();
         }
 
-        ctx.fillStyle = '#ff3344';
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = '#ff3344';
         const fx = food.x * cellSize + cellSize / 2;
         const fy = food.y * cellSize + cellSize / 2;
-        ctx.beginPath();
-        ctx.arc(fx, fy, cellSize * 0.4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        ctx.font = `${Math.floor(cellSize * 0.95)}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(food.emoji, fx, fy);
 
+        const flashing = performance.now() < flashUntil;
         snake.forEach((seg, i) => {
             const isHead = i === snake.length - 1;
-            ctx.fillStyle = isHead ? '#00ff41' : '#00cc33';
-            ctx.shadowBlur = isHead ? 10 : 0;
-            ctx.shadowColor = '#00ff41';
+            if (flashing) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 16;
+                ctx.shadowColor = '#ffffff';
+            } else {
+                ctx.fillStyle = isHead ? '#00ff41' : '#00cc33';
+                ctx.shadowBlur = isHead ? 10 : 0;
+                ctx.shadowColor = '#00ff41';
+            }
             const pad = 1;
             ctx.fillRect(
                 seg.x * cellSize + pad,
@@ -145,8 +155,8 @@
             lastTick = ts;
             step();
             if (!running) return;
-            draw();
         }
+        draw();
         rafId = requestAnimationFrame(loop);
     }
 
@@ -154,6 +164,7 @@
         startScreen.classList.add('hidden');
         gameOverScreen.classList.add('hidden');
         newRecordEl.classList.add('hidden');
+        clearConfetti();
         resetGame();
         draw();
         running = true;
@@ -164,13 +175,17 @@
     function gameOver() {
         running = false;
         cancelAnimationFrame(rafId);
-        playGameOver();
         finalScoreEl.textContent = score;
-        if (score > highScore) {
+        const isNewRecord = score > highScore;
+        if (isNewRecord) {
             highScore = score;
             localStorage.setItem(HIGH_SCORE_KEY, highScore);
             highScoreEl.textContent = highScore;
             newRecordEl.classList.remove('hidden');
+            playVictory();
+            launchConfetti();
+        } else {
+            playGameOver();
         }
         gameOverScreen.classList.remove('hidden');
     }
@@ -228,29 +243,56 @@
         return audioCtx;
     }
 
-    function beep(freq, duration, type = 'square', volume = 0.15) {
+    function beep(freq, duration, type = 'square', volume = 0.15, delay = 0) {
         const ac = getAudio();
         if (!ac) return;
+        const start = ac.currentTime + delay;
         const osc = ac.createOscillator();
         const gain = ac.createGain();
         osc.type = type;
         osc.frequency.value = freq;
-        gain.gain.setValueAtTime(volume, ac.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + duration);
+        gain.gain.setValueAtTime(volume, start);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
         osc.connect(gain).connect(ac.destination);
-        osc.start();
-        osc.stop(ac.currentTime + duration);
+        osc.start(start);
+        osc.stop(start + duration);
     }
 
     function playEat() {
         beep(880, 0.08, 'square', 0.18);
-        setTimeout(() => beep(1320, 0.08, 'square', 0.15), 60);
+        beep(1320, 0.08, 'square', 0.15, 0.06);
     }
 
     function playGameOver() {
         beep(220, 0.18, 'sawtooth', 0.2);
-        setTimeout(() => beep(140, 0.25, 'sawtooth', 0.18), 150);
-        setTimeout(() => beep(80, 0.35, 'sawtooth', 0.15), 350);
+        beep(140, 0.25, 'sawtooth', 0.18, 0.15);
+        beep(80, 0.35, 'sawtooth', 0.15, 0.35);
+    }
+
+    function playVictory() {
+        const notes = [523, 659, 784, 1046, 1318];
+        notes.forEach((f, i) => beep(f, 0.18, 'square', 0.18, i * 0.1));
+        beep(1568, 0.4, 'square', 0.2, notes.length * 0.1);
+    }
+
+    function launchConfetti() {
+        const colors = ['#ff3b3b', '#ffeb3b', '#3bff7d', '#3bb6ff', '#ff3bd0', '#ff9b3b'];
+        const count = 80;
+        for (let i = 0; i < count; i++) {
+            const piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.style.left = Math.random() * 100 + '%';
+            piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+            piece.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+            piece.style.animationDelay = Math.random() * 0.5 + 's';
+            piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+            confettiContainer.appendChild(piece);
+        }
+        setTimeout(clearConfetti, 4000);
+    }
+
+    function clearConfetti() {
+        if (confettiContainer) confettiContainer.innerHTML = '';
     }
 
     startBtn.addEventListener('click', () => {
